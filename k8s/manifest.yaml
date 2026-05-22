@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-ui
+  namespace: skirmshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skirmbooks-ui
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-ui
+    spec:
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: harbor-pull
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      containers:
+        - name: skirmbooks-ui
+          image: harbor.e-dani.com/homelab/skirmbooks-ui:k8s-20260523-legacy
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3050
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3050"
+            - name: HOST
+              value: 0.0.0.0
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: password
+            - name: GESTORIA_DB_URL
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks?options=-c%20app.tenant_id%3Dskirmshop
+            - name: _RMQUSER
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secrets
+                  key: RABBITMQ_DEFAULT_USER
+            - name: _RMQPASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secrets
+                  key: RABBITMQ_DEFAULT_PASS
+            - name: AMQP_HOST
+              value: shared-rabbitmq.databases.svc.cluster.local
+            - name: AMQP_PORT
+              value: "5672"
+            - name: AMQP_VHOST
+              value: /synapse
+            - name: AMQP_USER
+              value: $(_RMQUSER)
+            - name: AMQP_PASSWORD
+              value: $(_RMQPASS)
+            - name: AMQP_URL
+              value: amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse
+          envFrom:
+            - secretRef:
+                name: skirmbooks-ui-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              memory: 768Mi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3050
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3050
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skirmbooks-ui
+  namespace: skirmshop
+spec:
+  selector:
+    app: skirmbooks-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3050
