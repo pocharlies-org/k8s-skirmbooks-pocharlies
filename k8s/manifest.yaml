@@ -73,6 +73,11 @@ spec:
               value: $(_RMQPASS)
             - name: AMQP_URL
               value: amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse
+            # OCR (facturas recibidas) → in-cluster LiteLLM. The sauvage-hosted pod
+            # cannot reach the x86 LAN default (192.168.50.142); use the cluster svc.
+            # LITELLM_API_KEY is injected via envFrom: skirmbooks-ui-secrets.
+            - name: LITELLM_BASE
+              value: http://litellm.litellm.svc.cluster.local:4000/v1
           envFrom:
             - secretRef:
                 name: skirmbooks-ui-secrets
@@ -109,3 +114,24 @@ spec:
     - name: http
       port: 80
       targetPort: 3050
+---
+# LAN/Tailscale-only access (financial app, not internet-facing).
+# Resolves via *.lan.e-dani.com → traefik-lan LB (192.168.50.240).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: skirmbooks-ui-lan
+  namespace: skirmshop
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`skirmbooks.lan.e-dani.com`)
+      services:
+        - name: skirmbooks-ui
+          port: 80
+  tls:
+    store:
+      name: default
+      namespace: traefik-lan
