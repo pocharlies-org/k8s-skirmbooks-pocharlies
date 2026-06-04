@@ -33,6 +33,11 @@ spec:
               containerPort: 3050
               protocol: TCP
           env:
+            # SSR must render dates in the users' TZ (Spain), not UTC, or React
+            # hydration mismatches on every date (#418/#425) force a full client
+            # re-render — the flash users saw as "la página no carga".
+            - name: TZ
+              value: Europe/Madrid
             - name: NODE_ENV
               value: production
             - name: PORT
