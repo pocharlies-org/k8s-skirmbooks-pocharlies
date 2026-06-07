@@ -109,7 +109,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend@sha256:4f05ff2d18effaf565d4b04bdd81365e20b54948fa8d30689e28abb0919f70e4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend@sha256:0d6b45128da1ff22db846578ea1b09822bc7cb8a3d6d2acb648f66cf0e3623d1
         args:
         - synapse_adapter_banking
         env:
@@ -346,6 +346,22 @@ spec:
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
           containerPort: 9523
@@ -357,8 +373,6 @@ spec:
         - name: credentials
           mountPath: /etc/synapse/credentials
           readOnly: true
-        - name: storage
-          mountPath: /var/lib/synapse
         resources:
           requests:
             cpu: 50m
@@ -384,8 +398,6 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
-      - name: storage
-        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
