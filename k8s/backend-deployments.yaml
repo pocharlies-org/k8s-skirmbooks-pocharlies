@@ -109,7 +109,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend@sha256:3dbccf5d70e1dfd1c1e992d55002b640be46f195a7d13aa2c354845ee0cff764
+        image: harbor.e-dani.com/homelab/skirmbooks-backend@sha256:4f05ff2d18effaf565d4b04bdd81365e20b54948fa8d30689e28abb0919f70e4
         args:
         - synapse_adapter_banking
         env:
