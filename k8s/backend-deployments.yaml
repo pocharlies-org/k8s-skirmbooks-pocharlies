@@ -373,6 +373,8 @@ spec:
         - name: credentials
           mountPath: /etc/synapse/credentials
           readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
         resources:
           requests:
             cpu: 50m
@@ -398,6 +400,8 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
