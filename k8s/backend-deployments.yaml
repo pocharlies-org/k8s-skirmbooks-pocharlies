@@ -1096,6 +1096,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-payroll
+    app.kubernetes.io/name: skirmbooks-payroll
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1109,6 +1113,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-payroll
+        app.kubernetes.io/name: skirmbooks-payroll
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1123,12 +1128,266 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_payroll
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_PAYROLL_CONFIG
           value: /etc/synapse/adapter-gestoria-payroll.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9527
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-payroll.yaml
+          subPath: adapter-gestoria-payroll.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-payroll-config
+          items:
+          - key: adapter-gestoria-payroll.yaml
+            path: adapter-gestoria-payroll.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-payroll-hr
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-payroll-hr
+    app.kubernetes.io/name: skirmbooks-payroll-hr
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: hr
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-payroll-hr
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-payroll-hr
+        app.kubernetes.io/name: skirmbooks-payroll-hr
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: payroll
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_payroll
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_PAYROLL_CONFIG
+          value: /etc/synapse/adapter-gestoria-payroll.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: employee.hire,employee.terminate,calendar.add
+        ports:
+        - name: metrics
+          containerPort: 9527
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-payroll.yaml
+          subPath: adapter-gestoria-payroll.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-payroll-config
+          items:
+          - key: adapter-gestoria-payroll.yaml
+            path: adapter-gestoria-payroll.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-payroll-payslip
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-payroll-payslip
+    app.kubernetes.io/name: skirmbooks-payroll-payslip
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: payslip
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-payroll-payslip
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-payroll-payslip
+        app.kubernetes.io/name: skirmbooks-payroll-payslip
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: payroll
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_payroll
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_PAYROLL_CONFIG
+          value: /etc/synapse/adapter-gestoria-payroll.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: payslip.draft,payslip.approve,payslip.pay,irpf_retention.record
+        ports:
+        - name: metrics
+          containerPort: 9527
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-payroll.yaml
+          subPath: adapter-gestoria-payroll.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-payroll-config
+          items:
+          - key: adapter-gestoria-payroll.yaml
+            path: adapter-gestoria-payroll.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-payroll-tgss
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-payroll-tgss
+    app.kubernetes.io/name: skirmbooks-payroll-tgss
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: tgss
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-payroll-tgss
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-payroll-tgss
+        app.kubernetes.io/name: skirmbooks-payroll-tgss
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: payroll
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_payroll
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_PAYROLL_CONFIG
+          value: /etc/synapse/adapter-gestoria-payroll.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: tgss.send_alta,tgss.send_cotizacion
         ports:
         - name: metrics
           containerPort: 9527
