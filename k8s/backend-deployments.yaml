@@ -1349,6 +1349,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-invoicing
+    app.kubernetes.io/name: skirmbooks-invoicing
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1362,6 +1366,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-invoicing
+        app.kubernetes.io/name: skirmbooks-invoicing
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1376,12 +1381,534 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_invoicing
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
+        ports:
+        - name: metrics
+          containerPort: 9523
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+          subPath: adapter-gestoria-invoicing.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-invoicing-config
+          items:
+          - key: adapter-gestoria-invoicing.yaml
+            path: adapter-gestoria-invoicing.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-invoicing-fast
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-invoicing-fast
+    app.kubernetes.io/name: skirmbooks-invoicing-fast
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: fast
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-invoicing-fast
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-invoicing-fast
+        app.kubernetes.io/name: skirmbooks-invoicing-fast
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: invoicing
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_invoicing
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
+          value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: incoming.ingest,received.confirm,received.reject,orphan.request_invoice,supplier.upsert,customer.upsert
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
+        ports:
+        - name: metrics
+          containerPort: 9523
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+          subPath: adapter-gestoria-invoicing.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-invoicing-config
+          items:
+          - key: adapter-gestoria-invoicing.yaml
+            path: adapter-gestoria-invoicing.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-invoicing-ocr
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-invoicing-ocr
+    app.kubernetes.io/name: skirmbooks-invoicing-ocr
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: ocr
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-invoicing-ocr
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-invoicing-ocr
+        app.kubernetes.io/name: skirmbooks-invoicing-ocr
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: invoicing
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_invoicing
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
+          value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: ocr.extract
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
+        ports:
+        - name: metrics
+          containerPort: 9523
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+          subPath: adapter-gestoria-invoicing.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-invoicing-config
+          items:
+          - key: adapter-gestoria-invoicing.yaml
+            path: adapter-gestoria-invoicing.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-invoicing-classify
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-invoicing-classify
+    app.kubernetes.io/name: skirmbooks-invoicing-classify
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: classify
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-invoicing-classify
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-invoicing-classify
+        app.kubernetes.io/name: skirmbooks-invoicing-classify
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: invoicing
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_invoicing
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
+          value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: classify
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
+        ports:
+        - name: metrics
+          containerPort: 9523
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+          subPath: adapter-gestoria-invoicing.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-invoicing-config
+          items:
+          - key: adapter-gestoria-invoicing.yaml
+            path: adapter-gestoria-invoicing.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-invoicing-posting
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-invoicing-posting
+    app.kubernetes.io/name: skirmbooks-invoicing-posting
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: posting
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-invoicing-posting
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-invoicing-posting
+        app.kubernetes.io/name: skirmbooks-invoicing-posting
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: invoicing
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_invoicing
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
+          value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: posting.post
+        - name: S3_ENDPOINT
+          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        - name: S3_BUCKET
+          value: skirmshop-drive
+        - name: S3_REGION
+          value: us-east-1
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
+        ports:
+        - name: metrics
+          containerPort: 9523
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+          subPath: adapter-gestoria-invoicing.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        - name: synapse-data
+          mountPath: /var/lib/synapse
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-invoicing-config
+          items:
+          - key: adapter-gestoria-invoicing.yaml
+            path: adapter-gestoria-invoicing.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: synapse-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-invoicing-issued
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-invoicing-issued
+    app.kubernetes.io/name: skirmbooks-invoicing-issued
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: issued
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-invoicing-issued
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-invoicing-issued
+        app.kubernetes.io/name: skirmbooks-invoicing-issued
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: invoicing
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_invoicing
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
+          value: /etc/synapse/adapter-gestoria-invoicing.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: issued.create
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
