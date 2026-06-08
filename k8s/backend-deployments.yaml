@@ -5,6 +5,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-accounting
+    app.kubernetes.io/name: skirmbooks-accounting
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -18,6 +22,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-accounting
+        app.kubernetes.io/name: skirmbooks-accounting
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -32,12 +37,350 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_accounting
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
           value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9524
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-accounting.yaml
+          subPath: adapter-gestoria-accounting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-accounting-config
+          items:
+          - key: adapter-gestoria-accounting.yaml
+            path: adapter-gestoria-accounting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-accounting-entry
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-accounting-entry
+    app.kubernetes.io/name: skirmbooks-accounting-entry
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: entry
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-accounting-entry
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-accounting-entry
+        app.kubernetes.io/name: skirmbooks-accounting-entry
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: accounting
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_accounting
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
+          value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: entry.post,entry.amend,entry.reverse
+        ports:
+        - name: metrics
+          containerPort: 9524
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-accounting.yaml
+          subPath: adapter-gestoria-accounting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-accounting-config
+          items:
+          - key: adapter-gestoria-accounting.yaml
+            path: adapter-gestoria-accounting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-accounting-derived
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-accounting-derived
+    app.kubernetes.io/name: skirmbooks-accounting-derived
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: derived
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-accounting-derived
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-accounting-derived
+        app.kubernetes.io/name: skirmbooks-accounting-derived
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: accounting
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_accounting
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
+          value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: derived.from_invoice,derived.from_movement,derived.from_payslip,derived.from_transfer,derived.from_stripe_charge
+        ports:
+        - name: metrics
+          containerPort: 9524
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-accounting.yaml
+          subPath: adapter-gestoria-accounting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-accounting-config
+          items:
+          - key: adapter-gestoria-accounting.yaml
+            path: adapter-gestoria-accounting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-accounting-period
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-accounting-period
+    app.kubernetes.io/name: skirmbooks-accounting-period
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: period
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-accounting-period
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-accounting-period
+        app.kubernetes.io/name: skirmbooks-accounting-period
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: accounting
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_accounting
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
+          value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: period.close,period.reopen,year_end_close
+        ports:
+        - name: metrics
+          containerPort: 9524
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-accounting.yaml
+          subPath: adapter-gestoria-accounting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-accounting-config
+          items:
+          - key: adapter-gestoria-accounting.yaml
+            path: adapter-gestoria-accounting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-accounting-maintenance
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-accounting-maintenance
+    app.kubernetes.io/name: skirmbooks-accounting-maintenance
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: maintenance
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-accounting-maintenance
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-accounting-maintenance
+        app.kubernetes.io/name: skirmbooks-accounting-maintenance
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: accounting
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_accounting
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
+          value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: retention.archive,amortization.run
         ports:
         - name: metrics
           containerPort: 9524
