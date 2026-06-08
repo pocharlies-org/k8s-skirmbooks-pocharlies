@@ -1783,6 +1783,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-shopify-sii-bridge
+    app.kubernetes.io/name: skirmbooks-shopify-sii-bridge
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii_emitted
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1796,6 +1800,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-shopify-sii-bridge
+        app.kubernetes.io/name: skirmbooks-shopify-sii-bridge
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1810,12 +1815,182 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_SHOPIFY_SII_BRIDGE_CONFIG
           value: /etc/synapse/adapter-gestoria-shopify-sii-bridge.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9531
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-shopify-sii-bridge.yaml
+          subPath: adapter-gestoria-shopify-sii-bridge.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-shopify-sii-bridge-config
+          items:
+          - key: adapter-gestoria-shopify-sii-bridge.yaml
+            path: adapter-gestoria-shopify-sii-bridge.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-shopify-sii-bridge-request
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-shopify-sii-bridge-request
+    app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-request
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii_emitted
+    synapse.io/worker-profile: request
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-shopify-sii-bridge-request
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-shopify-sii-bridge-request
+        app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-request
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: shopify-sii-bridge
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_shopify_sii_bridge
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_SHOPIFY_SII_BRIDGE_CONFIG
+          value: /etc/synapse/adapter-gestoria-shopify-sii-bridge.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: invoice.request
+        ports:
+        - name: metrics
+          containerPort: 9531
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-shopify-sii-bridge.yaml
+          subPath: adapter-gestoria-shopify-sii-bridge.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-shopify-sii-bridge-config
+          items:
+          - key: adapter-gestoria-shopify-sii-bridge.yaml
+            path: adapter-gestoria-shopify-sii-bridge.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-shopify-sii-bridge-poll
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-shopify-sii-bridge-poll
+    app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-poll
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii_emitted
+    synapse.io/worker-profile: poll
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-shopify-sii-bridge-poll
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-shopify-sii-bridge-poll
+        app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-poll
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: shopify-sii-bridge
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_shopify_sii_bridge
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_SHOPIFY_SII_BRIDGE_CONFIG
+          value: /etc/synapse/adapter-gestoria-shopify-sii-bridge.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: invoice.poll
         ports:
         - name: metrics
           containerPort: 9531
@@ -1860,6 +2035,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-sii-inbound
+    app.kubernetes.io/name: skirmbooks-sii-inbound
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1873,6 +2052,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-sii-inbound
+        app.kubernetes.io/name: skirmbooks-sii-inbound
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1887,12 +2067,266 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_sii_inbound
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
           value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9530
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+          subPath: adapter-gestoria-sii-inbound.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-sii-inbound-config
+          items:
+          - key: adapter-gestoria-sii-inbound.yaml
+            path: adapter-gestoria-sii-inbound.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-sii-inbound-push
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-sii-inbound-push
+    app.kubernetes.io/name: skirmbooks-sii-inbound-push
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: push
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-sii-inbound-push
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-sii-inbound-push
+        app.kubernetes.io/name: skirmbooks-sii-inbound-push
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: sii-inbound
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_sii_inbound
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
+          value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: push_recibida
+        ports:
+        - name: metrics
+          containerPort: 9530
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+          subPath: adapter-gestoria-sii-inbound.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-sii-inbound-config
+          items:
+          - key: adapter-gestoria-sii-inbound.yaml
+            path: adapter-gestoria-sii-inbound.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-sii-inbound-assets
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-sii-inbound-assets
+    app.kubernetes.io/name: skirmbooks-sii-inbound-assets
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: assets
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-sii-inbound-assets
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-sii-inbound-assets
+        app.kubernetes.io/name: skirmbooks-sii-inbound-assets
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: sii-inbound
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_sii_inbound
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
+          value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: bien_inversion.add
+        ports:
+        - name: metrics
+          containerPort: 9530
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+          subPath: adapter-gestoria-sii-inbound.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-sii-inbound-config
+          items:
+          - key: adapter-gestoria-sii-inbound.yaml
+            path: adapter-gestoria-sii-inbound.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-sii-inbound-reconcile
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-sii-inbound-reconcile
+    app.kubernetes.io/name: skirmbooks-sii-inbound-reconcile
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: reconcile
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-sii-inbound-reconcile
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-sii-inbound-reconcile
+        app.kubernetes.io/name: skirmbooks-sii-inbound-reconcile
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: sii-inbound
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_sii_inbound
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
+          value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: reconcile_aeat
         ports:
         - name: metrics
           containerPort: 9530
