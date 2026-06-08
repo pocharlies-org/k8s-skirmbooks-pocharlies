@@ -1013,6 +1013,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-identity
+    app.kubernetes.io/name: skirmbooks-identity
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1026,6 +1030,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-identity
+        app.kubernetes.io/name: skirmbooks-identity
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1040,12 +1045,266 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_identity
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_IDENTITY_CONFIG
           value: /etc/synapse/adapter-gestoria-identity.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9521
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-identity.yaml
+          subPath: adapter-gestoria-identity.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-identity-config
+          items:
+          - key: adapter-gestoria-identity.yaml
+            path: adapter-gestoria-identity.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-identity-core
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-identity-core
+    app.kubernetes.io/name: skirmbooks-identity-core
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: core
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-identity-core
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-identity-core
+        app.kubernetes.io/name: skirmbooks-identity-core
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: identity
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_identity
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_IDENTITY_CONFIG
+          value: /etc/synapse/adapter-gestoria-identity.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: user.create,user.update_role,tenant.create,tenant.update,onboarding.advance_step
+        ports:
+        - name: metrics
+          containerPort: 9521
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-identity.yaml
+          subPath: adapter-gestoria-identity.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-identity-config
+          items:
+          - key: adapter-gestoria-identity.yaml
+            path: adapter-gestoria-identity.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-identity-certs
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-identity-certs
+    app.kubernetes.io/name: skirmbooks-identity-certs
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: certs
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-identity-certs
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-identity-certs
+        app.kubernetes.io/name: skirmbooks-identity-certs
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: identity
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_identity
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_IDENTITY_CONFIG
+          value: /etc/synapse/adapter-gestoria-identity.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: certificate.register,certificate.rotate,cert.check_expiry
+        ports:
+        - name: metrics
+          containerPort: 9521
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-identity.yaml
+          subPath: adapter-gestoria-identity.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-identity-config
+          items:
+          - key: adapter-gestoria-identity.yaml
+            path: adapter-gestoria-identity.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-identity-privacy
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-identity-privacy
+    app.kubernetes.io/name: skirmbooks-identity-privacy
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: privacy
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-identity-privacy
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-identity-privacy
+        app.kubernetes.io/name: skirmbooks-identity-privacy
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: identity
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_identity
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_IDENTITY_CONFIG
+          value: /etc/synapse/adapter-gestoria-identity.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: subject.anonymize
         ports:
         - name: metrics
           containerPort: 9521
