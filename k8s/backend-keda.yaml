@@ -8,7 +8,7 @@ metadata:
   namespace: skirmshop
 type: Opaque
 stringData:
-  host: http://shared-rabbitmq.databases.svc.cluster.local:15672/%2Fsynapse
+  host: http://synapse-rmq.databases.svc.cluster.local:15672/%2Fsynapse
 ---
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
@@ -23,11 +23,11 @@ spec:
     name: skirmbooks-keda-rabbitmq
     key: host
   - parameter: username
-    name: rabbitmq-secrets
-    key: RABBITMQ_DEFAULT_USER
+    name: skirmbooks-keda-rabbitmq-auth
+    key: username
   - parameter: password
-    name: rabbitmq-secrets
-    key: RABBITMQ_DEFAULT_PASS
+    name: skirmbooks-keda-rabbitmq-auth
+    key: password
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -43,7 +43,6 @@ spec:
     name: skirmbooks-accounting-derived
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -72,7 +71,6 @@ spec:
     name: skirmbooks-accounting-entry
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -101,7 +99,6 @@ spec:
     name: skirmbooks-accounting-maintenance
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -130,7 +127,6 @@ spec:
     name: skirmbooks-accounting-period
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -159,7 +155,6 @@ spec:
     name: skirmbooks-banking-imports
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -188,7 +183,6 @@ spec:
     name: skirmbooks-banking-psd2
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -217,7 +211,6 @@ spec:
     name: skirmbooks-banking-reconcile
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -246,7 +239,6 @@ spec:
     name: skirmbooks-fiscal-validator-analysis
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -275,7 +267,6 @@ spec:
     name: skirmbooks-fiscal-validator-validation
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -304,7 +295,6 @@ spec:
     name: skirmbooks-identity-certs
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -333,7 +323,6 @@ spec:
     name: skirmbooks-identity-core
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -362,7 +351,6 @@ spec:
     name: skirmbooks-identity-privacy
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -371,7 +359,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.identity.subject.anonymize
+      queueName: ^adapter\.identity\.subject\.anonymize$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -389,7 +379,6 @@ spec:
     name: skirmbooks-invoicing-classify
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -398,7 +387,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.invoicing.classify
+      queueName: ^adapter\.invoicing\.classify$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -416,7 +407,6 @@ spec:
     name: skirmbooks-invoicing-fast
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -445,7 +435,6 @@ spec:
     name: skirmbooks-invoicing-issued
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -454,7 +443,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.invoicing.issued.create
+      queueName: ^adapter\.invoicing\.issued\.create$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -472,7 +463,6 @@ spec:
     name: skirmbooks-invoicing-ocr
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -481,7 +471,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.invoicing.ocr.extract
+      queueName: ^adapter\.invoicing\.ocr\.extract$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -499,7 +491,6 @@ spec:
     name: skirmbooks-invoicing-posting
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -508,7 +499,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.invoicing.posting.post
+      queueName: ^adapter\.invoicing\.posting\.post$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -526,7 +519,6 @@ spec:
     name: skirmbooks-notifications-alerts
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -555,7 +547,6 @@ spec:
     name: skirmbooks-notifications-deh
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -584,7 +575,6 @@ spec:
     name: skirmbooks-payroll-hr
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -613,7 +603,6 @@ spec:
     name: skirmbooks-payroll-payslip
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -642,7 +631,6 @@ spec:
     name: skirmbooks-payroll-tgss
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -671,7 +659,6 @@ spec:
     name: skirmbooks-reporting-cashflow
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -680,7 +667,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.reporting.cashflow.project
+      queueName: ^adapter\.reporting\.cashflow\.project$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -698,7 +687,6 @@ spec:
     name: skirmbooks-reporting-refresh
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -707,7 +695,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '10'
-      queueName: adapter.reporting.view.refresh
+      queueName: ^adapter\.reporting\.view\.refresh$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -725,7 +715,6 @@ spec:
     name: skirmbooks-reporting-search
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -734,7 +723,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '10'
-      queueName: adapter.reporting.search
+      queueName: ^adapter\.reporting\.search$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -752,7 +743,6 @@ spec:
     name: skirmbooks-shopify-sii-bridge-poll
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -761,7 +751,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.sii_emitted.invoice.poll
+      queueName: ^adapter\.sii_emitted\.invoice\.poll$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -779,7 +771,6 @@ spec:
     name: skirmbooks-shopify-sii-bridge-request
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -788,7 +779,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.sii_emitted.invoice.request
+      queueName: ^adapter\.sii_emitted\.invoice\.request$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -806,7 +799,6 @@ spec:
     name: skirmbooks-sii-inbound-assets
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -815,7 +807,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.sii.bien_inversion.add
+      queueName: ^adapter\.sii\.bien_inversion\.add$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -833,7 +827,6 @@ spec:
     name: skirmbooks-sii-inbound-push
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -842,7 +835,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.sii.push_recibida
+      queueName: ^adapter\.sii\.push_recibida$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -860,7 +855,6 @@ spec:
     name: skirmbooks-sii-inbound-reconcile
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -869,7 +863,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.sii.reconcile_aeat
+      queueName: ^adapter\.sii\.reconcile_aeat$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -887,7 +883,6 @@ spec:
     name: skirmbooks-tax-aeat
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -896,7 +891,9 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: adapter.tax.aeat_response.process
+      queueName: ^adapter\.tax\.aeat_response\.process$
+      useRegex: "true"
+      operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
 ---
@@ -914,7 +911,6 @@ spec:
     name: skirmbooks-tax-calendar
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
@@ -943,7 +939,6 @@ spec:
     name: skirmbooks-tax-modelo
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
@@ -972,7 +967,6 @@ spec:
     name: skirmbooks-tax-sii
   pollingInterval: 30
   cooldownPeriod: 21600
-  idleReplicaCount: 0
   minReplicaCount: 1
   maxReplicaCount: 6
   triggers:
