@@ -82,6 +82,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-banking
+    app.kubernetes.io/name: skirmbooks-banking
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -95,6 +99,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-banking
+        app.kubernetes.io/name: skirmbooks-banking
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -109,12 +114,266 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_banking
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9522
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+          subPath: adapter-gestoria-banking.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-banking-config
+          items:
+          - key: adapter-gestoria-banking.yaml
+            path: adapter-gestoria-banking.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-banking-psd2
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-psd2
+    app.kubernetes.io/name: skirmbooks-banking-psd2
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: psd2
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-banking-psd2
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-banking-psd2
+        app.kubernetes.io/name: skirmbooks-banking-psd2
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: banking
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_banking
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
+          value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: account.connect,psd2.list_institutions,psd2.create_requisition,psd2.complete_requisition,psd2.reauth_check
+        ports:
+        - name: metrics
+          containerPort: 9522
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+          subPath: adapter-gestoria-banking.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-banking-config
+          items:
+          - key: adapter-gestoria-banking.yaml
+            path: adapter-gestoria-banking.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-banking-imports
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-imports
+    app.kubernetes.io/name: skirmbooks-banking-imports
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: imports
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-banking-imports
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-banking-imports
+        app.kubernetes.io/name: skirmbooks-banking-imports
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: banking
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_banking
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
+          value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: movements.import_psd2,movements.import_stripe_webhook,movements.import_paypal_webhook,movements.import_csv,movements.daily_sync,import_monei
+        ports:
+        - name: metrics
+          containerPort: 9522
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+          subPath: adapter-gestoria-banking.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-banking-config
+          items:
+          - key: adapter-gestoria-banking.yaml
+            path: adapter-gestoria-banking.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-banking-reconcile
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-reconcile
+    app.kubernetes.io/name: skirmbooks-banking-reconcile
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: reconcile
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-banking-reconcile
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-banking-reconcile
+        app.kubernetes.io/name: skirmbooks-banking-reconcile
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: banking
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_banking
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
+          value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: reconcile.match_movement,reconcile.accept,reconcile.reject,reconcile.bulk_approve,transfer.detect
         ports:
         - name: metrics
           containerPort: 9522
