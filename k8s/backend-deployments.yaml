@@ -669,6 +669,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-notifications
+    app.kubernetes.io/name: skirmbooks-notifications
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: notifications
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -682,6 +686,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-notifications
+        app.kubernetes.io/name: skirmbooks-notifications
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -696,12 +701,182 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_notifications
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_NOTIFICATIONS_CONFIG
           value: /etc/synapse/adapter-gestoria-notifications.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9528
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
+          subPath: adapter-gestoria-notifications.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-notifications-config
+          items:
+          - key: adapter-gestoria-notifications.yaml
+            path: adapter-gestoria-notifications.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-notifications-alerts
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-notifications-alerts
+    app.kubernetes.io/name: skirmbooks-notifications-alerts
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: notifications
+    synapse.io/worker-profile: alerts
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-notifications-alerts
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-notifications-alerts
+        app.kubernetes.io/name: skirmbooks-notifications-alerts
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: notifications
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_notifications
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_NOTIFICATIONS_CONFIG
+          value: /etc/synapse/adapter-gestoria-notifications.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: alert.create,alert.dispatch,alert.dismiss
+        ports:
+        - name: metrics
+          containerPort: 9528
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
+          subPath: adapter-gestoria-notifications.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-notifications-config
+          items:
+          - key: adapter-gestoria-notifications.yaml
+            path: adapter-gestoria-notifications.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-notifications-deh
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-notifications-deh
+    app.kubernetes.io/name: skirmbooks-notifications-deh
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: notifications
+    synapse.io/worker-profile: deh
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-notifications-deh
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-notifications-deh
+        app.kubernetes.io/name: skirmbooks-notifications-deh
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: notifications
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_notifications
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_NOTIFICATIONS_CONFIG
+          value: /etc/synapse/adapter-gestoria-notifications.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: deh.poll,deh.open
         ports:
         - name: metrics
           containerPort: 9528
