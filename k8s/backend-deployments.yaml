@@ -1678,6 +1678,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-tax
+    app.kubernetes.io/name: skirmbooks-tax
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -1691,6 +1695,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-tax
+        app.kubernetes.io/name: skirmbooks-tax
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -1705,12 +1710,350 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_tax
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_TAX_CONFIG
           value: /etc/synapse/adapter-gestoria-tax.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9525
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-tax.yaml
+          subPath: adapter-gestoria-tax.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-tax-config
+          items:
+          - key: adapter-gestoria-tax.yaml
+            path: adapter-gestoria-tax.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-tax-modelo
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-tax-modelo
+    app.kubernetes.io/name: skirmbooks-tax-modelo
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: modelo
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-tax-modelo
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-tax-modelo
+        app.kubernetes.io/name: skirmbooks-tax-modelo
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: tax
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_tax
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_TAX_CONFIG
+          value: /etc/synapse/adapter-gestoria-tax.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: modelo.recompute,modelo.approve,modelo.submit
+        ports:
+        - name: metrics
+          containerPort: 9525
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-tax.yaml
+          subPath: adapter-gestoria-tax.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-tax-config
+          items:
+          - key: adapter-gestoria-tax.yaml
+            path: adapter-gestoria-tax.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-tax-sii
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-tax-sii
+    app.kubernetes.io/name: skirmbooks-tax-sii
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: sii
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-tax-sii
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-tax-sii
+        app.kubernetes.io/name: skirmbooks-tax-sii
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: tax
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_tax
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_TAX_CONFIG
+          value: /etc/synapse/adapter-gestoria-tax.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: sii.request,sii.diff.compute
+        ports:
+        - name: metrics
+          containerPort: 9525
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-tax.yaml
+          subPath: adapter-gestoria-tax.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-tax-config
+          items:
+          - key: adapter-gestoria-tax.yaml
+            path: adapter-gestoria-tax.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-tax-calendar
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-tax-calendar
+    app.kubernetes.io/name: skirmbooks-tax-calendar
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: calendar
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-tax-calendar
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-tax-calendar
+        app.kubernetes.io/name: skirmbooks-tax-calendar
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: tax
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_tax
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_TAX_CONFIG
+          value: /etc/synapse/adapter-gestoria-tax.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: calendar.regenerate,calendar.export_ics
+        ports:
+        - name: metrics
+          containerPort: 9525
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-tax.yaml
+          subPath: adapter-gestoria-tax.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-tax-config
+          items:
+          - key: adapter-gestoria-tax.yaml
+            path: adapter-gestoria-tax.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-tax-aeat
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-tax-aeat
+    app.kubernetes.io/name: skirmbooks-tax-aeat
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: aeat
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-tax-aeat
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-tax-aeat
+        app.kubernetes.io/name: skirmbooks-tax-aeat
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: tax
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_tax
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_TAX_CONFIG
+          value: /etc/synapse/adapter-gestoria-tax.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: aeat_response.process
         ports:
         - name: metrics
           containerPort: 9525
