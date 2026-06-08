@@ -1,0 +1,988 @@
+# Generated from backend-deployments.yaml worker profiles.
+# Keep one ScaledObject per non-legacy Synapse worker profile.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: skirmbooks-keda-rabbitmq
+  namespace: skirmshop
+type: Opaque
+stringData:
+  host: http://shared-rabbitmq.databases.svc.cluster.local:15672/%2Fsynapse
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: skirmbooks-rabbitmq-http
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+spec:
+  secretTargetRef:
+  - parameter: host
+    name: skirmbooks-keda-rabbitmq
+    key: host
+  - parameter: username
+    name: rabbitmq-secrets
+    key: RABBITMQ_DEFAULT_USER
+  - parameter: password
+    name: rabbitmq-secrets
+    key: RABBITMQ_DEFAULT_PASS
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-accounting-derived
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: derived
+spec:
+  scaleTargetRef:
+    name: skirmbooks-accounting-derived
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.accounting\.(derived\.from_invoice|derived\.from_movement|derived\.from_payslip|derived\.from_transfer|derived\.from_stripe_charge)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-accounting-entry
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: entry
+spec:
+  scaleTargetRef:
+    name: skirmbooks-accounting-entry
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.accounting\.(entry\.post|entry\.amend|entry\.reverse)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-accounting-maintenance
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: maintenance
+spec:
+  scaleTargetRef:
+    name: skirmbooks-accounting-maintenance
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.accounting\.(retention\.archive|amortization\.run)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-accounting-period
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: accounting
+    synapse.io/worker-profile: period
+spec:
+  scaleTargetRef:
+    name: skirmbooks-accounting-period
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.accounting\.(period\.close|period\.reopen|year_end_close)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-banking-imports
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: imports
+spec:
+  scaleTargetRef:
+    name: skirmbooks-banking-imports
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.banking\.(movements\.import_psd2|movements\.import_stripe_webhook|movements\.import_paypal_webhook|movements\.import_csv|movements\.daily_sync|import_monei)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-banking-psd2
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: psd2
+spec:
+  scaleTargetRef:
+    name: skirmbooks-banking-psd2
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.banking\.(account\.connect|psd2\.list_institutions|psd2\.create_requisition|psd2\.complete_requisition|psd2\.reauth_check)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-banking-reconcile
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: reconcile
+spec:
+  scaleTargetRef:
+    name: skirmbooks-banking-reconcile
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.banking\.(reconcile\.match_movement|reconcile\.accept|reconcile\.reject|reconcile\.bulk_approve|transfer\.detect)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-fiscal-validator-analysis
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: analysis
+spec:
+  scaleTargetRef:
+    name: skirmbooks-fiscal-validator-analysis
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.fiscal\.(detect_anomaly|explain_decision|diagnose_sii_diff)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-fiscal-validator-validation
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: validation
+spec:
+  scaleTargetRef:
+    name: skirmbooks-fiscal-validator-validation
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.fiscal\.(validate_classification|score_match|validate_modelo_casilla)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-identity-certs
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: certs
+spec:
+  scaleTargetRef:
+    name: skirmbooks-identity-certs
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.identity\.(certificate\.register|certificate\.rotate|cert\.check_expiry)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-identity-core
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: core
+spec:
+  scaleTargetRef:
+    name: skirmbooks-identity-core
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.identity\.(user\.create|user\.update_role|tenant\.create|tenant\.update|onboarding\.advance_step)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-identity-privacy
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: identity
+    synapse.io/worker-profile: privacy
+spec:
+  scaleTargetRef:
+    name: skirmbooks-identity-privacy
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.identity.subject.anonymize
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-invoicing-classify
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: classify
+spec:
+  scaleTargetRef:
+    name: skirmbooks-invoicing-classify
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.invoicing.classify
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-invoicing-fast
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: fast
+spec:
+  scaleTargetRef:
+    name: skirmbooks-invoicing-fast
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.invoicing\.(incoming\.ingest|received\.confirm|received\.reject|orphan\.request_invoice|supplier\.upsert|customer\.upsert)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-invoicing-issued
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: issued
+spec:
+  scaleTargetRef:
+    name: skirmbooks-invoicing-issued
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.invoicing.issued.create
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-invoicing-ocr
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: ocr
+spec:
+  scaleTargetRef:
+    name: skirmbooks-invoicing-ocr
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.invoicing.ocr.extract
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-invoicing-posting
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: invoicing
+    synapse.io/worker-profile: posting
+spec:
+  scaleTargetRef:
+    name: skirmbooks-invoicing-posting
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.invoicing.posting.post
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-notifications-alerts
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: notifications
+    synapse.io/worker-profile: alerts
+spec:
+  scaleTargetRef:
+    name: skirmbooks-notifications-alerts
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.notifications\.(alert\.create|alert\.dispatch|alert\.dismiss)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-notifications-deh
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: notifications
+    synapse.io/worker-profile: deh
+spec:
+  scaleTargetRef:
+    name: skirmbooks-notifications-deh
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.notifications\.(deh\.poll|deh\.open)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-payroll-hr
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: hr
+spec:
+  scaleTargetRef:
+    name: skirmbooks-payroll-hr
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.payroll\.(employee\.hire|employee\.terminate|calendar\.add)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-payroll-payslip
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: payslip
+spec:
+  scaleTargetRef:
+    name: skirmbooks-payroll-payslip
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.payroll\.(payslip\.draft|payslip\.approve|payslip\.pay|irpf_retention\.record)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-payroll-tgss
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: payroll
+    synapse.io/worker-profile: tgss
+spec:
+  scaleTargetRef:
+    name: skirmbooks-payroll-tgss
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.payroll\.(tgss\.send_alta|tgss\.send_cotizacion)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-reporting-cashflow
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: reporting
+    synapse.io/worker-profile: cashflow
+spec:
+  scaleTargetRef:
+    name: skirmbooks-reporting-cashflow
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.reporting.cashflow.project
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-reporting-refresh
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: reporting
+    synapse.io/worker-profile: refresh
+spec:
+  scaleTargetRef:
+    name: skirmbooks-reporting-refresh
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: adapter.reporting.view.refresh
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-reporting-search
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: reporting
+    synapse.io/worker-profile: search
+spec:
+  scaleTargetRef:
+    name: skirmbooks-reporting-search
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: adapter.reporting.search
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-shopify-sii-bridge-poll
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii_emitted
+    synapse.io/worker-profile: poll
+spec:
+  scaleTargetRef:
+    name: skirmbooks-shopify-sii-bridge-poll
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.sii_emitted.invoice.poll
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-shopify-sii-bridge-request
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii_emitted
+    synapse.io/worker-profile: request
+spec:
+  scaleTargetRef:
+    name: skirmbooks-shopify-sii-bridge-request
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.sii_emitted.invoice.request
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-sii-inbound-assets
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: assets
+spec:
+  scaleTargetRef:
+    name: skirmbooks-sii-inbound-assets
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.sii.bien_inversion.add
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-sii-inbound-push
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: push
+spec:
+  scaleTargetRef:
+    name: skirmbooks-sii-inbound-push
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.sii.push_recibida
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-sii-inbound-reconcile
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: sii
+    synapse.io/worker-profile: reconcile
+spec:
+  scaleTargetRef:
+    name: skirmbooks-sii-inbound-reconcile
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.sii.reconcile_aeat
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-tax-aeat
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: aeat
+spec:
+  scaleTargetRef:
+    name: skirmbooks-tax-aeat
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: adapter.tax.aeat_response.process
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-tax-calendar
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: calendar
+spec:
+  scaleTargetRef:
+    name: skirmbooks-tax-calendar
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '10'
+      queueName: ^adapter\.tax\.(calendar\.regenerate|calendar\.export_ics)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-tax-modelo
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: modelo
+spec:
+  scaleTargetRef:
+    name: skirmbooks-tax-modelo
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.tax\.(modelo\.recompute|modelo\.approve|modelo\.submit)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-tax-sii
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: tax
+    synapse.io/worker-profile: sii
+spec:
+  scaleTargetRef:
+    name: skirmbooks-tax-sii
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.tax\.(sii\.request|sii\.diff\.compute)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
