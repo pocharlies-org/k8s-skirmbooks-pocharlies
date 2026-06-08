@@ -418,6 +418,10 @@ metadata:
   namespace: skirmshop
   labels:
     app: skirmbooks-fiscal-validator
+    app.kubernetes.io/name: skirmbooks-fiscal-validator
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: legacy-drain
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
@@ -431,6 +435,7 @@ spec:
     metadata:
       labels:
         app: skirmbooks-fiscal-validator
+        app.kubernetes.io/name: skirmbooks-fiscal-validator
     spec:
       enableServiceLinks: false
       nodeSelector:
@@ -445,12 +450,182 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:s3-20260608-2@sha256:6d4313dfcb0e60618fb0a92a81633ec6533839967b794b0d1793cc05afd1a466
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
         args:
         - synapse_adapter_fiscal_validator
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
           value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SYNAPSE_LEGACY_DRAIN_QUEUE
+          value: "1"
+        ports:
+        - name: metrics
+          containerPort: 9526
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+          subPath: adapter-gestoria-fiscal-validator.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-fiscal-validator-config
+          items:
+          - key: adapter-gestoria-fiscal-validator.yaml
+            path: adapter-gestoria-fiscal-validator.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-fiscal-validator-validation
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-fiscal-validator-validation
+    app.kubernetes.io/name: skirmbooks-fiscal-validator-validation
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: validation
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-fiscal-validator-validation
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-fiscal-validator-validation
+        app.kubernetes.io/name: skirmbooks-fiscal-validator-validation
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: fiscal-validator
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_fiscal_validator
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
+          value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: validate_classification,score_match,validate_modelo_casilla
+        ports:
+        - name: metrics
+          containerPort: 9526
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+          subPath: adapter-gestoria-fiscal-validator.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-fiscal-validator-config
+          items:
+          - key: adapter-gestoria-fiscal-validator.yaml
+            path: adapter-gestoria-fiscal-validator.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-fiscal-validator-analysis
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-fiscal-validator-analysis
+    app.kubernetes.io/name: skirmbooks-fiscal-validator-analysis
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: analysis
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-fiscal-validator-analysis
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-fiscal-validator-analysis
+        app.kubernetes.io/name: skirmbooks-fiscal-validator-analysis
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: fiscal-validator
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260608-1-delta@sha256:2344dddc09b98d39dbbcb1243736b856c14aac5847eda8778cdbd20d46ff0683
+        args:
+        - synapse_adapter_fiscal_validator
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
+          value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: detect_anomaly,explain_decision,diagnose_sii_diff
         ports:
         - name: metrics
           containerPort: 9526
