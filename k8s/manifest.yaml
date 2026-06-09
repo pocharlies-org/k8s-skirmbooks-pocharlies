@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.e-dani.com/homelab/skirmbooks-ui:s3-20260609-3@sha256:c577385fb189abdc1596384037ad58be7f5368b01246ff4c4206fe84f99aaf04
+          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260610-1@sha256:eae0e3f4ddfc7c511edbbadb8aa583164116c88088f18ff96ab13945af0b57e4
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -44,6 +44,11 @@ spec:
               value: "3050"
             - name: HOST
               value: 0.0.0.0
+            # Multi-empresa: tenant por defecto cuando el request no trae la
+            # cookie sb_tenant (probes, webhooks, primer acceso). El GUC de RLS
+            # lo fija la app por checkout (set_config), ya NO va en el DSN.
+            - name: TENANT_ID
+              value: skirmshop
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -55,7 +60,7 @@ spec:
                   name: shared-postgres-app
                   key: password
             - name: GESTORIA_DB_URL
-              value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks?options=-c%20app.tenant_id%3Dskirmshop
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
             - name: _RMQUSER
               valueFrom:
                 secretKeyRef:
