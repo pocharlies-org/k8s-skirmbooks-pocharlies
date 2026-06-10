@@ -709,7 +709,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:reconcile-sqlfix-20260610-1-delta@sha256:35a2b76fd57082346a004ce8d65318a1db1ec74a373ccc69b993340f99295e15
         args:
         - synapse_adapter_banking
         env:
