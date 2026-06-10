@@ -457,7 +457,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260610-1-delta@sha256:7ad161c39a9d9dabc1d811fc8bf47eb3847ec3003748aa4545ccdacb50a3df9b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
         args:
         - synapse_adapter_banking
         env:
@@ -541,7 +541,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260610-1-delta@sha256:7ad161c39a9d9dabc1d811fc8bf47eb3847ec3003748aa4545ccdacb50a3df9b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
         args:
         - synapse_adapter_banking
         env:
@@ -625,7 +625,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260610-1-delta@sha256:7ad161c39a9d9dabc1d811fc8bf47eb3847ec3003748aa4545ccdacb50a3df9b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
         args:
         - synapse_adapter_banking
         env:
@@ -709,7 +709,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:queue-split-20260610-1-delta@sha256:7ad161c39a9d9dabc1d811fc8bf47eb3847ec3003748aa4545ccdacb50a3df9b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
         args:
         - synapse_adapter_banking
         env:
