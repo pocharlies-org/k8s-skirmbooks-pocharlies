@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-accounting-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-accounting.yaml: "service: synapse-adapter-gestoria-accounting\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9524\n\
+    database:\n  dsn: postgresql://gestoria_accounting_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_accounting@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    retention:\n  enabled: true\n  archive_after_years: 7\n  s3:\n    bucket: skirmshop-gestoria-archive\n\
+    \    prefix: accounting/\n    region: eu-west-1\n    enabled: false\ntenants:\n\
+    - skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-banking.yaml: "service: synapse-adapter-gestoria-banking\nlogging:\n\
+    \  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9522\ndatabase:\n\
+    \  dsn: postgresql://gestoria_banking_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_banking@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    psd2:\n  aggregator: enable_banking\n  base_url: https://api.enablebanking.com\n\
+    \  initial_history_days: 90\n  daily_lookback_days: 7\nstripe:\n  api_key_credential:\
+    \ stripe.api_key\n  webhook_secret_credential: stripe.webhook_secret\npaypal:\n\
+    \  client_id_credential: paypal.client_id\n  client_secret_credential: paypal.client_secret\n\
+    \  webhook_id_credential: paypal.webhook_id\nmatching:\n  tier1_date_window_days:\
+    \ 3\n  tier2_date_window_days: 15\n  tier2_amount_tolerance_pct: 0.01\n  tier2_auto_threshold:\
+    \ 0.95\n  tier2_suggest_threshold: 0.7\n  tier2_weights_name: 0.3\n  tier2_weights_amount:\
+    \ 0.3\n  tier2_weights_date: 0.2\n  tier2_weights_concept: 0.2\n  subset_sum_max_invoices:\
+    \ 6\ntransfer_detection:\n  enabled: true\n  date_window_days: 2\n  amount_tolerance:\
+    \ 0.01\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-fiscal-validator-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-fiscal-validator.yaml: "service: synapse-adapter-gestoria-fiscal-validator\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9526\n\
+    database:\n  dsn: postgresql://gestoria_fiscal_validator_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 6\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_fiscal_validator@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    litellm:\n  base_url: http://litellm.litellm.svc.cluster.local:4000/v1\n  primary_model:\
+    \ tooling\n  smart_model: smart\n  fast_model: fast\n  cloud_fallback: cb-gpt-4o-mini\n\
+    \  timeout_s: 60.0\n  use_prompt_caching: true\n  use_redis_prefix_cache_fallback:\
+    \ true\ncorpus:\n  path: /app/fiscal-corpus/built.txt\n\
+    \  version: v1\ncircuit_breaker:\n  max_consecutive_failures: 5\n  half_open_after_seconds:\
+    \ 30\nthresholds:\n  auto_min: 0.95\n  suggest_min: 0.7\nredis:\n  host: skirmbooks-redis.skirmshop.svc.cluster.local\n\
+    \  port: 6379\n  db: 7\n  ttl_seconds: 86400\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-identity-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-identity.yaml: "service: synapse-adapter-gestoria-identity\nlogging:\n\
+    \  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9521\ndatabase:\n\
+    \  dsn: postgresql://gestoria_identity_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 8\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_identity@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    certificates:\n  credentials_dir: /etc/synapse/credentials\n  expiry_alert_days:\n\
+    \  - 30\n  - 15\n  - 7\n  - 1\ncrypto:\n  nif_vault_key_credential: gestoria_identity.nif_vault_key\n\
+    \  argon2_time_cost: 3\n  argon2_memory_cost: 65536\n  argon2_parallelism: 4\n\
+    tenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-invoicing-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-invoicing.yaml: "service: synapse-adapter-gestoria-invoicing\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9523\n\
+    database:\n  dsn: postgresql://gestoria_invoicing_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_invoicing@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    litellm:\n  base_url: http://litellm.litellm.svc.cluster.local:4000/v1\n  text_model:\
+    \ tooling\n  vision_model: tooling\n  timeout_s: 120\n  max_images_per_pdf: 8\n\
+    storage:\n  backend: s3\n  endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000\n  bucket: skirmshop-drive\n  region: us-east-1\n  prefix: skirmbooks/invoicing\n  access_key_env: AWS_ACCESS_KEY_ID\n  secret_key_env: AWS_SECRET_ACCESS_KEY\n  secure: false\n  root: /var/lib/synapse/gestoria/invoicing\n  pdf_dpi: 200\n  image_format:\
+    \ png\norphan_request:\n  timeout_days: 14\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-notifications-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-notifications.yaml: "service: synapse-adapter-gestoria-notifications\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9528\n\
+    database:\n  dsn: postgresql://gestoria_notifications_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_notifications@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    deh:\n  enabled: false\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-payroll-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-payroll.yaml: "service: synapse-adapter-gestoria-payroll\nlogging:\n\
+    \  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9527\ndatabase:\n\
+    \  dsn: postgresql://gestoria_payroll_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_payroll@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    tgss:\n  sistema_red_endpoint: https://red.seg-social.gob.es/SicedNet/services\n\
+    \  enabled: false\nirpf:\n  default_employee_rate: 12.0\n  professional_invoice_rate:\
+    \ 15.0\n  rental_rate: 19.0\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-reporting-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-reporting.yaml: "service: synapse-adapter-gestoria-reporting\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9529\n\
+    database:\n  dsn: postgresql://gestoria_reporting_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 6\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_reporting@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    http:\n  enabled: true\n  host: 0.0.0.0\n  port: 8530\nrefresh:\n  debounce_ms:\
+    \ 5000\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-shopify-sii-bridge-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-shopify-sii-bridge.yaml: "service: synapse-adapter-gestoria-shopify-sii-bridge\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9531\n\
+    database:\n  dsn: postgresql://gestoria_shopify_sii_bridge_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_shopify_sii_bridge@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    shopify_sii_app:\n  base_url: https://sii.skirmshop.es\n  poll_interval_seconds:\
+    \ 60\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-sii-inbound-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-sii-inbound.yaml: "service: synapse-adapter-gestoria-sii-inbound\n\
+    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9530\n\
+    database:\n  dsn: postgresql://gestoria_sii_inbound_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_sii_inbound@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    aeat:\n  environment: test\ntenants:\n- skirmshop\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-tax-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-tax.yaml: "service: synapse-adapter-gestoria-tax\nlogging:\n  level:\
+    \ INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9525\ndatabase:\n \
+    \ dsn: postgresql://gestoria_tax_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
+    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_tax@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    aeat:\n  sii_endpoint_test: https://prewww1.aeat.es/wlpl/SSII-FACT/ws/fe/SiiFactFEV1SOAP\n\
+    \  modelo_endpoint: https://www2.agenciatributaria.gob.es/wlpl/PRES2-PRES/PresentacionWS\n\
+    \  environment: test\n  request_timeout_s: 180.0\ncalendar:\n  base_url: https://gestoria.skirmshop.es\n\
+    tenants:\n- skirmshop\n"

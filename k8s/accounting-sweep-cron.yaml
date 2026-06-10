@@ -1,0 +1,267 @@
+# Disparador durable de CONTABILIZACIÓN (skirmbooks) — bloque rojo.
+#
+# Contexto: skirmbooks no tiene engine de workflows; la arquitectura es
+# command-driven (ver reconcile-sweep-cron.yaml, mismo patrón). Nada disparaba
+# la creación de asientos: las facturas recibidas se quedaban en 'classified'
+# (y 7 en 'posted' SIN asiento por el stub posting.post), y las ventas Shopify
+# viven en la app shopify-sii (tabla SiiSubmission, misma instancia Postgres,
+# BD `skirmshop`) sin reflejo en gestoria_invoicing.issued_invoices → PyG e
+# IVA devengado del 303 siempre a cero.
+#
+# Este CronJob barre cada 15 min, idempotente en cascada (cada fase filtra lo
+# ya hecho Y los handlers deduplican por source_aggregate / UNIQUE):
+#   1. RECIBIDAS:  classified/posted sin journal_entry_id
+#                  → accounting.<t>.derived.from_invoice (kind=received)
+#   2. VENTAS SII: SiiSubmission production (F1/F2, no rectificativas) que no
+#                  estén en issued_invoices (serie SII)
+#                  → invoicing.<t>.issued.import
+#   3. EMITIDAS:   issued_invoices sin asiento (dedup por source_aggregate)
+#                  → accounting.<t>.derived.from_invoice (kind=issued)
+# Publica DIRECTO al broker de los adapters (synapse-rmq) — broker-drift-immune.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-accounting-sweep-script
+  namespace: skirmshop
+data:
+  sweep.py: |
+    """Barre facturas sin asiento + importa ventas SII y publica los comandos."""
+    import asyncio, json, os, uuid
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-invoicing.yaml"
+    CREDS = "/etc/synapse/credentials"
+    SII_TENANT = os.environ.get("SII_TENANT", "skirmshop")
+    BATCH_RECEIVED = int(os.environ.get("BATCH_RECEIVED", "200"))
+    BATCH_IMPORT = int(os.environ.get("BATCH_IMPORT", "500"))
+    BATCH_ISSUED = int(os.environ.get("BATCH_ISSUED", "300"))
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_invoicing_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_invoicing.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[acc-sweep] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {SII_TENANT}
+
+        commands = []  # (routing_key, tenant, plugin, params)
+
+        # ---- Fase 1: recibidas classified/posted sin asiento → derived.from_invoice
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT id FROM gestoria_invoicing.incoming_invoices
+                WHERE tenant_id=$1 AND state IN ('classified','posted')
+                  AND journal_entry_id IS NULL AND base_imponible IS NOT NULL
+                ORDER BY invoice_date NULLS LAST
+                LIMIT $2
+                """, t, BATCH_RECEIVED,
+            )
+            for r in rows:
+                commands.append((f"accounting.{t}.derived.from_invoice", t,
+                                 "accounting.derived.from_invoice",
+                                 {"invoice_kind": "received", "invoice_id": str(r["id"])}))
+            print(f"[acc-sweep] {t}: recibidas sin asiento={len(rows)}", flush=True)
+
+        # ---- Fase 2: SiiSubmission (BD skirmshop, app shopify-sii) → issued.import
+        sii_dsn = os.environ.get("SII_DATABASE_URL")
+        if sii_dsn:
+            t = SII_TENANT
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            have = {r["number"] for r in await conn.fetch(
+                "SELECT number FROM gestoria_invoicing.issued_invoices WHERE tenant_id=$1 AND series='SII'", t)}
+            sii = await asyncpg.connect(sii_dsn)
+            try:
+                srows = await sii.fetch(
+                    """
+                    SELECT DISTINCT ON (date, category, "invoiceNumber")
+                           id, date, category, "invoiceNumber", "invoiceType", "orderCount",
+                           "baseImponible", "cuotaRepercutida", "totalAmount", "taxBreakdown",
+                           "counterpartyName", "counterpartyId", "counterpartyCountry"
+                    FROM "SiiSubmission"
+                    WHERE environment='production'
+                    ORDER BY date, category, "invoiceNumber", "createdAt" DESC
+                    """,
+                )
+            finally:
+                await sii.close()
+            skipped_rect = 0
+            queued = 0
+            for s in srows:
+                if s["invoiceType"] and s["invoiceType"].upper().startswith("R"):
+                    skipped_rect += 1
+                    continue
+                if s["invoiceNumber"] in have or queued >= BATCH_IMPORT:
+                    continue
+                try:
+                    breakdown = json.loads(s["taxBreakdown"] or "[]")
+                except Exception:
+                    breakdown = []
+                commands.append((f"invoicing.{t}.issued.import", t, "invoicing.issued.import", {
+                    "source": "shopify_sii",
+                    "external_id": s["id"],
+                    "series": "SII",
+                    "invoice_number": s["invoiceNumber"],
+                    "invoice_date": s["date"],
+                    "category": s["category"],
+                    "base_imponible": float(s["baseImponible"]),
+                    "cuota_repercutida": float(s["cuotaRepercutida"]),
+                    "total": float(s["totalAmount"]),
+                    "tax_breakdown": breakdown,
+                    "counterparty_name": s["counterpartyName"],
+                    "counterparty_nif": s["counterpartyId"],
+                    "counterparty_country": s["counterpartyCountry"],
+                    "order_count": s["orderCount"],
+                }))
+                queued += 1
+            # Rectificativas fuera de alcance del importador: requieren asiento
+            # inverso + vínculo rectifies_id — se registran en log, no en silencio.
+            print(f"[acc-sweep] sii: prod={len(srows)} ya_importadas={len(have)} "
+                  f"encoladas={queued} rectificativas_skip={skipped_rect}", flush=True)
+
+        # ---- Fase 3: emitidas sin asiento → derived.from_invoice (issued)
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT ii.id FROM gestoria_invoicing.issued_invoices ii
+                WHERE ii.tenant_id=$1 AND ii.status='issued'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM gestoria_accounting.journal_entries je
+                    WHERE je.tenant_id=ii.tenant_id
+                      AND je.source_aggregate_type='invoicing.issued'
+                      AND je.source_aggregate_id=ii.id AND je.status='posted')
+                ORDER BY ii.invoice_date
+                LIMIT $2
+                """, t, BATCH_ISSUED,
+            )
+            for r in rows:
+                commands.append((f"accounting.{t}.derived.from_invoice", t,
+                                 "accounting.derived.from_invoice",
+                                 {"invoice_kind": "issued", "invoice_id": str(r["id"])}))
+            print(f"[acc-sweep] {t}: emitidas sin asiento={len(rows)}", flush=True)
+
+        await conn.close()
+        if not commands:
+            print("[acc-sweep] nada que hacer", flush=True)
+            return
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        for rk, t, plugin, params in commands:
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": plugin,
+                "params": params,
+                "attempt": 1,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "accounting-sweep"},
+                ),
+                routing_key=rk,
+            )
+        await rmq.close()
+        print(f"[acc-sweep] publicados={len(commands)}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-accounting-sweep
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-accounting-sweep
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "7,22,37,52 * * * *"   # cada 15 min, desfasado del reconcile-sweep
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-accounting-sweep
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-3-delta@sha256:5a1128866b5c7bdfc305347a260da320b9a0edc017f20eb56bf22778f0c376d3
+            command: ["python", "/scripts/sweep.py"]
+            env:
+            - name: SII_TENANT
+              value: skirmshop
+            - name: SII_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: username
+            - name: SII_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: password
+            # BD de la app shopify-sii (misma instancia CNPG, database `skirmshop`)
+            - name: SII_DATABASE_URL
+              value: postgresql://$(SII_DB_USER):$(SII_DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmshop
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-accounting-sweep-script
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

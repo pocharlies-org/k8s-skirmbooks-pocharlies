@@ -1,0 +1,40 @@
+# Cache-only redis for the fiscal-validator adapter (corpus/embedding cache).
+# No persistence (appendonly off, save off): if redis dies, the validator just
+# re-validates against the LLM (degraded latency, not data loss).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-redis
+  namespace: skirmshop
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: skirmbooks-redis}}
+  template:
+    metadata: {labels: {app: skirmbooks-redis}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {role: edge, kubernetes.io/arch: amd64}
+      tolerations:
+        - {key: role, operator: Equal, value: edge, effect: NoSchedule}
+      containers:
+        - name: redis
+          image: redis:8.0.0
+          args: [redis-server, --appendonly, "no", --save, ""]
+          ports: [{name: redis, containerPort: 6379}]
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits:   {memory: 256Mi}
+          readinessProbe:
+            exec: {command: [redis-cli, ping]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skirmbooks-redis
+  namespace: skirmshop
+spec:
+  selector: {app: skirmbooks-redis}
+  ports:
+    - {name: redis, port: 6379, targetPort: 6379}
