@@ -37,7 +37,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_accounting
         env:
@@ -121,7 +121,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_accounting
         env:
@@ -205,7 +205,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_accounting
         env:
@@ -289,7 +289,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_accounting
         env:
@@ -373,7 +373,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_accounting
         env:
@@ -457,7 +457,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_banking
         env:
@@ -541,7 +541,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_banking
         env:
@@ -793,7 +793,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_fiscal_validator
         env:
@@ -877,7 +877,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_fiscal_validator
         env:
@@ -961,7 +961,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_fiscal_validator
         env:
@@ -1045,7 +1045,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_identity
         env:
@@ -1129,7 +1129,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_identity
         env:
@@ -1213,7 +1213,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_identity
         env:
@@ -1297,7 +1297,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_identity
         env:
@@ -1381,7 +1381,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -1485,7 +1485,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -1589,7 +1589,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -1693,7 +1693,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -1797,7 +1797,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -1901,7 +1901,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_invoicing
         env:
@@ -2005,7 +2005,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_notifications
         env:
@@ -2089,7 +2089,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_notifications
         env:
@@ -2173,7 +2173,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_notifications
         env:
@@ -2257,7 +2257,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_payroll
         env:
@@ -2341,7 +2341,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_payroll
         env:
@@ -2425,7 +2425,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_payroll
         env:
@@ -2509,7 +2509,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_payroll
         env:
@@ -2593,7 +2593,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_reporting
         env:
@@ -2679,7 +2679,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_reporting
         env:
@@ -2763,7 +2763,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_reporting
         env:
@@ -2847,7 +2847,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_reporting
         env:
@@ -2944,7 +2944,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
@@ -3028,7 +3028,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
@@ -3112,7 +3112,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
@@ -3196,7 +3196,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3280,7 +3280,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3364,7 +3364,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3448,7 +3448,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3532,7 +3532,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_tax
         env:
@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_tax
         env:
@@ -3700,7 +3700,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_tax
         env:
@@ -3784,7 +3784,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_tax
         env:
@@ -3868,7 +3868,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-4-delta@sha256:5695d475b51da972af98f11db8b81391f9e00ba71ec00688a893d36731856b86
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-6-delta@sha256:77ce026a68f4e1c20583edb9c6bd8604f476f601c04760e4bb51a09bc930c9fb
         args:
         - synapse_adapter_tax
         env:
