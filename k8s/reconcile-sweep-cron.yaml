@@ -1,0 +1,165 @@
+# Disparador durable de conciliación bancaria (skirmbooks).
+#
+# Contexto: skirmbooks NO tiene engine de workflows desplegado; la arquitectura
+# es command-driven. La conciliación de un movimiento se dispara publicando el
+# comando `banking.<tenant>.reconcile.match_movement`. Nada lo publicaba al
+# importar (la UI publica un evento muerto y, además, a OTRO broker — drift
+# shared-rabbitmq vs synapse-rmq). Resultado: 0 conciliaciones automáticas.
+#
+# Este CronJob barre periódicamente los movimientos `status=imported` que aún NO
+# tienen propuesta y publica match_movement para cada uno, AL BROKER del adapter
+# (synapse-rmq, el de sauvage). Es:
+#   - broker-drift-immune (publica directo al broker correcto),
+#   - source-agnostic (cubre PSD2/CSV/cualquier importador),
+#   - idempotente (filtra los que ya tienen propuesta -> no duplica).
+# Reusa la imagen + config + credenciales del adapter banking (aditivo, no toca
+# los Deployments en marcha).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-reconcile-sweep-script
+  namespace: skirmshop
+data:
+  sweep.py: |
+    """Barre bank_movements imported sin propuesta y publica match_movement."""
+    import asyncio, json, os, uuid, sys
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        # amqp://user@host/... -> amqp://user:pw@host/...   (idem postgresql://)
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        # discovery best-effort (cubre empresas añadidas tras el config)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[sweep] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        to_match = {}  # tenant -> [movement_id]
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT m.id FROM gestoria_banking.bank_movements m
+                WHERE m.tenant_id=$1 AND m.status='imported'
+                  AND NOT EXISTS (SELECT 1 FROM gestoria_banking.reconciliation_proposals p
+                                  WHERE p.movement_id=m.id)
+                ORDER BY m.value_date
+                """, t,
+            )
+            to_match[t] = [str(r["id"]) for r in rows]
+        await conn.close()
+
+        total = sum(len(v) for v in to_match.values())
+        print(f"[sweep] tenants={sorted(tenants)} pendientes={ {t: len(v) for t,v in to_match.items()} } total={total}", flush=True)
+        if total == 0:
+            return
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t, ids in to_match.items():
+            for mid in ids:
+                msg_id = uuid.uuid4().hex
+                body = json.dumps({
+                    "workflow_instance_id": str(uuid.uuid4()),
+                    "step_id": msg_id,
+                    "plugin": "banking.reconcile.match_movement",
+                    "params": {"movement_id": mid},
+                    "attempt": 1,
+                }).encode()
+                await ex.publish(
+                    aio_pika.Message(
+                        body=body, content_type="application/json",
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                        message_id=msg_id,
+                        headers={"tenant_id": t, "source": "reconcile-sweep"},
+                    ),
+                    routing_key=f"banking.{t}.reconcile.match_movement",
+                )
+                published += 1
+        await rmq.close()
+        print(f"[sweep] publicados match_movement={published}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-reconcile-sweep
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-reconcile-sweep
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "*/15 * * * *"        # cada 15 min
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-reconcile-sweep
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260610-1-delta@sha256:25f54d1ba76a411732fa3aa11445846ad8ad035bae86bcdf81ad5debcb1e2106
+            command: ["python", "/scripts/sweep.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-reconcile-sweep-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
