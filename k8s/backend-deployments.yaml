@@ -625,7 +625,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-paypal-20260610-2-delta@sha256:a66b9c50012458da46e58591a41751d4cef32b4275c2ced16c0dbb48fa98c7ef
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-paypal-20260610-3-delta@sha256:871eaa8516cb8f16c750a6da1bfee5bdefc957a59e36b0a6dbcf6ed82bffa60b
         args:
         - synapse_adapter_banking
         env:
