@@ -151,11 +151,28 @@ metadata:
   name: skirmbooks-tax-config
   namespace: skirmshop
 data:
-  adapter-gestoria-tax.yaml: "service: synapse-adapter-gestoria-tax\nlogging:\n  level:\
-    \ INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9525\ndatabase:\n \
-    \ dsn: postgresql://gestoria_tax_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_tax@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
-    aeat:\n  sii_endpoint_test: https://prewww1.aeat.es/wlpl/SSII-FACT/ws/fe/SiiFactFEV1SOAP\n\
-    \  modelo_endpoint: https://www2.agenciatributaria.gob.es/wlpl/PRES2-PRES/PresentacionWS\n\
-    \  environment: test\n  request_timeout_s: 180.0\ncalendar:\n  base_url: https://gestoria.skirmshop.es\n\
-    tenants:\n- skirmshop\n"
+  adapter-gestoria-tax.yaml: |
+    service: synapse-adapter-gestoria-tax
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9525
+    database:
+      dsn: postgresql://gestoria_tax_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+      min_size: 2
+      max_size: 10
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_tax@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    aeat:
+      # Fase B: 303 por cable contra AEAT PRE (environment test => prewww1).
+      # Endpoints PresBasicaDos/ServValiDos = defaults de config.py.
+      environment: test
+      request_timeout_s: 180.0
+      modelo_modes:
+        "303": wire
+    calendar:
+      base_url: https://gestoria.skirmshop.es
+    tenants:
+    - skirmshop

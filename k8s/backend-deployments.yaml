@@ -205,7 +205,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:faseb-20260611-1-delta@sha256:b1b8e4b40a7fab4e49b818edab7265ca5abc72f9eddc64845ba0553047efd414
         args:
         - synapse_adapter_accounting
         env:
@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:faseb-20260611-1-delta@sha256:b1b8e4b40a7fab4e49b818edab7265ca5abc72f9eddc64845ba0553047efd414
         args:
         - synapse_adapter_tax
         env:
