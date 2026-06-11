@@ -625,7 +625,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-paypal-20260611-2-delta@sha256:9d9366edad2d8f44e520bfae525e79481891eb758471633ea04c88874220ea50
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
         args:
         - synapse_adapter_banking
         env:
@@ -709,7 +709,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:reconcile-sqlfix-20260610-1-delta@sha256:35a2b76fd57082346a004ce8d65318a1db1ec74a373ccc69b993340f99295e15
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
         args:
         - synapse_adapter_banking
         env:
@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:capa3-20260611-1-delta@sha256:7751e9b4699c13d0222083fe4d919ff358fad304bb709e9d87cec946ff6cf532
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
         args:
         - synapse_adapter_tax
         env:
