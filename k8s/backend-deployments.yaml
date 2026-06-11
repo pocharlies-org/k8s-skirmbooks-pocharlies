@@ -205,7 +205,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:faseb-20260611-1-delta@sha256:b1b8e4b40a7fab4e49b818edab7265ca5abc72f9eddc64845ba0553047efd414
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
         args:
         - synapse_adapter_accounting
         env:
@@ -1901,14 +1901,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
         args:
         - synapse_adapter_invoicing
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: issued.create,issued.import
+          value: issued.create,issued.import,received.import
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:faseb-20260611-4-delta@sha256:df8b51ea486d011263e955e59c480008f3b9e4b3edf876034302eb11de9e9da7
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
         args:
         - synapse_adapter_tax
         env:

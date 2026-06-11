@@ -443,7 +443,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.invoicing\.issued\.create$
+      queueName: ^adapter\.invoicing\.(issued\.(create|import)|received\.import)$
       useRegex: "true"
       operation: sum
     authenticationRef:
