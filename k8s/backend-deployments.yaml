@@ -1213,7 +1213,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-6-delta@sha256:002909066506e5e2890576a142e39180e1b08a178b8cc94c45d107e1da6a6c4d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:capa3-20260611-2-delta@sha256:4aefff4db085c9eea629349dbdfa11011a6a9c9b0ae9353a2ab19dc692a557a1
         args:
         - synapse_adapter_identity
         env:
