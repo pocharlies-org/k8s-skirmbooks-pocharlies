@@ -205,7 +205,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-2-delta@sha256:9d6dd3590b0282958ef348d19ced55229223147baa0cec2acf3f6cdcad321952
         args:
         - synapse_adapter_accounting
         env:
@@ -1901,7 +1901,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-2-delta@sha256:9d6dd3590b0282958ef348d19ced55229223147baa0cec2acf3f6cdcad321952
         args:
         - synapse_adapter_invoicing
         env:
@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-1-delta@sha256:93344ce60cf18447581eeb4b91a0c7873056e92b561a1b82ae0580ebc0744ee9
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-2-delta@sha256:9d6dd3590b0282958ef348d19ced55229223147baa0cec2acf3f6cdcad321952
         args:
         - synapse_adapter_tax
         env:
