@@ -87,8 +87,11 @@ data:
         if sii_dsn:
             t = SII_TENANT
             await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
-            have = {r["number"] for r in await conn.fetch(
-                "SELECT number FROM gestoria_invoicing.issued_invoices WHERE tenant_id=$1 AND series='SII'", t)}
+            have_rows = await conn.fetch(
+                "SELECT number, (country_breakdown <> '[]'::jsonb) AS has_cb"
+                " FROM gestoria_invoicing.issued_invoices WHERE tenant_id=$1 AND series='SII'", t)
+            have_all = {r["number"] for r in have_rows}
+            have_cb = {r["number"] for r in have_rows if r["has_cb"]}
             sii = await asyncpg.connect(sii_dsn)
             try:
                 srows = await sii.fetch(
@@ -96,6 +99,7 @@ data:
                     SELECT DISTINCT ON (date, category, "invoiceNumber")
                            id, date, category, "invoiceNumber", "invoiceType", "orderCount",
                            "baseImponible", "cuotaRepercutida", "totalAmount", "taxBreakdown",
+                           "countryBreakdown",
                            "counterpartyName", "counterpartyId", "counterpartyCountry"
                     FROM "SiiSubmission"
                     WHERE environment='production'
@@ -110,7 +114,15 @@ data:
                 if s["invoiceType"] and s["invoiceType"].upper().startswith("R"):
                     skipped_rect += 1
                     continue
-                if s["invoiceNumber"] in have or queued >= BATCH_IMPORT:
+                try:
+                    cb = json.loads(s["countryBreakdown"] or "[]")
+                except Exception:
+                    cb = []
+                # Re-publica también las YA importadas si ahora hay desglose
+                # por país y la factura aún no lo tiene (el handler refresca
+                # country_breakdown vía ON CONFLICT, sin tocar importes).
+                already_ok = s["invoiceNumber"] in have_cb or (s["invoiceNumber"] in have_all and not cb)
+                if already_ok or queued >= BATCH_IMPORT:
                     continue
                 try:
                     breakdown = json.loads(s["taxBreakdown"] or "[]")
@@ -127,6 +139,7 @@ data:
                     "cuota_repercutida": float(s["cuotaRepercutida"]),
                     "total": float(s["totalAmount"]),
                     "tax_breakdown": breakdown,
+                    "country_breakdown": cb,
                     "counterparty_name": s["counterpartyName"],
                     "counterparty_nif": s["counterpartyId"],
                     "counterparty_country": s["counterpartyCountry"],
@@ -135,7 +148,7 @@ data:
                 queued += 1
             # Rectificativas fuera de alcance del importador: requieren asiento
             # inverso + vínculo rectifies_id — se registran en log, no en silencio.
-            print(f"[acc-sweep] sii: prod={len(srows)} ya_importadas={len(have)} "
+            print(f"[acc-sweep] sii: prod={len(srows)} ya_importadas={len(have_all)} "
                   f"encoladas={queued} rectificativas_skip={skipped_rect}", flush=True)
 
         # ---- Fase 3: emitidas sin asiento → derived.from_invoice (issued)
@@ -226,7 +239,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-4-delta@sha256:6db0dd5352882fd02dfb6c86f0d84c9c197808572e62daf4edf7d434ef1cd4f8
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-5-delta@sha256:57e4af1f93c79831307c658d0cc930e947061af727904c8a275e630714c6928d
             command: ["python", "/scripts/sweep.py"]
             env:
             - name: SII_TENANT
