@@ -1,0 +1,207 @@
+# Barrido diario de modelos fiscales (Capa 2 de "modelos automáticos"):
+#   1. tax_calendar con periodo vencido y deadline por delante
+#      → tax.<t>.modelo.recompute  (borrador automático, idempotente)
+#   2. drafts draft_ready/warnings → notifications.<t>.alert.create
+#      (dedupe por modelo-periodo; aparece en "Avisos pendientes" del dashboard)
+#   3. alertas fiscal_deadline sin canales notificados → alert.dispatch
+# Patrón = accounting-sweep ("no engine para skirmbooks": el CronJob publica
+# comandos; los adapters son los únicos escritores).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-tax-modelo-sweep-script
+  namespace: skirmshop
+data:
+  sweep.py: |
+    """Barre el calendario fiscal: recompute de borradores due + avisos."""
+    import asyncio, json, os, uuid
+    from datetime import date, timedelta
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-tax.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_tax_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_tax.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[tax-sweep] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        today = date.today()
+        commands = []  # (routing_key, tenant, plugin, params)
+
+        # ---- Fase 1: periodos vencidos con deadline por delante → recompute
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT modelo, fiscal_year, period_type, period_index, deadline
+                FROM gestoria_tax.tax_calendar
+                WHERE tenant_id=$1 AND status IN ('pending','draft_ready')
+                  AND period_end < $2 AND deadline >= $2
+                ORDER BY deadline
+                """, t, today,
+            )
+            for r in rows:
+                commands.append((f"tax.{t}.modelo.recompute", t, "tax.modelo.recompute", {
+                    "modelo": r["modelo"], "fiscal_year": r["fiscal_year"],
+                    "period_type": r["period_type"], "period_index": r["period_index"],
+                }))
+            print(f"[tax-sweep] {t}: modelos due={len(rows)}", flush=True)
+
+        # ---- Fase 2: drafts listos → aviso (dedupe en alert.create)
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT d.modelo, d.fiscal_year, d.period_type, d.period_index,
+                       d.total_value, d.validation_status, c.deadline
+                FROM gestoria_tax.modelo_drafts d
+                JOIN gestoria_tax.tax_calendar c
+                  ON c.tenant_id=d.tenant_id AND c.modelo=d.modelo
+                 AND c.fiscal_year=d.fiscal_year AND c.period_type=d.period_type
+                 AND c.period_index=d.period_index
+                WHERE d.tenant_id=$1 AND d.status='draft'
+                  AND d.validation_status IN ('ok','warnings')
+                  AND c.deadline BETWEEN $2 AND $2 + INTERVAL '45 days'
+                """, t, today,
+            )
+            for r in rows:
+                key = f"modelo-{r['modelo']}-{r['fiscal_year']}-{r['period_type']}-{r['period_index']}"
+                sev = "warn" if r["validation_status"] == "warnings" else "info"
+                tv = float(r["total_value"] or 0)
+                commands.append((f"notifications.{t}.alert.create", t, "notifications.alert.create", {
+                    "category": "fiscal_deadline", "severity": sev,
+                    "title": f"Modelo {r['modelo']} {r['fiscal_year']} listo para revisar",
+                    "body": (f"Borrador {r['period_type']} {r['period_index']} calculado: "
+                             f"{tv:.2f} EUR. Vence {r['deadline']}. Revisa y aprueba."),
+                    "call_to_action": "Revisar y aprobar",
+                    "cta_url": f"/modelos/{r['modelo']}?y={r['fiscal_year']}&p={r['period_index']}",
+                    "dedupe_key": key,
+                }))
+            print(f"[tax-sweep] {t}: avisos draft_ready={len(rows)}", flush=True)
+
+        # ---- Fase 3: alertas fiscales sin despachar → dispatch
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT id FROM gestoria_notifications.alerts
+                WHERE tenant_id=$1 AND category='fiscal_deadline' AND status='open'
+                  AND notified_channels = '{}'
+                """, t,
+            )
+            for r in rows:
+                commands.append((f"notifications.{t}.alert.dispatch", t,
+                                 "notifications.alert.dispatch", {"alert_id": str(r["id"])}))
+            print(f"[tax-sweep] {t}: dispatch pendientes={len(rows)}", flush=True)
+
+        await conn.close()
+        if not commands:
+            print("[tax-sweep] nada que hacer", flush=True)
+            return
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        for rk, t, plugin, params in commands:
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": plugin,
+                "params": params,
+                "attempt": 1,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "tax-modelo-sweep"},
+                ),
+                routing_key=rk,
+            )
+        await rmq.close()
+        print(f"[tax-sweep] publicados={len(commands)}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-tax-modelo-sweep
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-tax-modelo-sweep
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "45 9 * * *"   # tras el pipeline de ingresos (07:00-09:15) y el acc-sweep
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-tax-modelo-sweep
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:capa1-20260611-1-delta@sha256:cd00c6a0ac04dfbd564d97845ed77313f30729b9b9729e2038bb03b704d86eb1
+            command: ["python", "/scripts/sweep.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-tax.yaml
+              subPath: adapter-gestoria-tax.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-tax-modelo-sweep-script
+          - name: config
+            configMap:
+              name: skirmbooks-tax-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

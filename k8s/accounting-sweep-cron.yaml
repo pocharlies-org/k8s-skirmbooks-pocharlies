@@ -183,6 +183,9 @@ data:
                 SELECT id FROM gestoria_invoicing.sii_invoices
                 WHERE tenant_id=$1 AND journal_entry_id IS NULL
                   AND invoice_date >= '2026-01-01'
+                  -- R1/R5 = sustituciones: asiento delta pendiente de diseño
+                  -- (el handler también las salta; doble guardia)
+                  AND COALESCE(invoice_type,'') NOT LIKE 'R%'
                 ORDER BY invoice_date
                 LIMIT $2
                 """, t, BATCH_ISSUED,
