@@ -4,13 +4,40 @@ metadata:
   name: skirmbooks-accounting-config
   namespace: skirmshop
 data:
-  adapter-gestoria-accounting.yaml: "service: synapse-adapter-gestoria-accounting\n\
-    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9524\n\
-    database:\n  dsn: postgresql://gestoria_accounting_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_accounting@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
-    retention:\n  enabled: true\n  archive_after_years: 7\n  s3:\n    bucket: skirmshop-gestoria-archive\n\
-    \    prefix: accounting/\n    region: eu-west-1\n    enabled: false\ntenants:\n\
-    - skirmshop\n"
+  adapter-gestoria-accounting.yaml: |
+    service: synapse-adapter-gestoria-accounting
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9524
+    database:
+      dsn: postgresql://gestoria_accounting_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+      min_size: 2
+      max_size: 10
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_accounting@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    retention:
+      enabled: true
+      archive_after_years: 7
+      s3:
+        bucket: skirmshop-gestoria-archive
+        prefix: accounting/
+        region: eu-west-1
+        enabled: false
+    processor_accounting:
+      # Criterio confirmado por la asesora (Talenom/Dolores, correo 11-06-2026,
+      # hilo "Revisión 303 mayo"): comisiones de pasarela = servicios
+      # financieros EXENTOS de IVA (sin ISP); solo gasto 626 para el IS.
+      fees_enabled: true
+      fee_vat_treatment:
+        shopify_payments: exempt
+        stripe: exempt
+        paypal: exempt
+        monei: exempt
+    tenants:
+    - skirmshop
 ---
 apiVersion: v1
 kind: ConfigMap
