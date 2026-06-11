@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260611-12@sha256:6c7cb7ca15943fbb8f423f940f97143eab9c5af01a2c1650c7f52813cafca136
+          image: harbor.e-dani.com/homelab/skirmbooks-ui:provenance-20260612-1@sha256:afdd54315cc042126e0380b2e6f90a7e5c6646a804b747c79b4c470402ee1d6c
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
