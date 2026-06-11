@@ -3616,7 +3616,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:capa2-20260611-3-delta@sha256:e9f6b02ce50bceb63fd08211beb3b1952b96a868cbc77ab84bcbf7e1a6ccf12d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:capa3-20260611-1-delta@sha256:7751e9b4699c13d0222083fe4d919ff358fad304bb709e9d87cec946ff6cf532
         args:
         - synapse_adapter_tax
         env:
@@ -3634,6 +3634,10 @@ spec:
           readOnly: true
         - name: credentials
           mountPath: /etc/synapse/credentials
+          readOnly: true
+        # Cert FNMT del sii-app (presentación de modelos vía mTLS — Capa 3)
+        - name: aeat-cert
+          mountPath: /etc/synapse/aeat
           readOnly: true
         resources:
           requests:
@@ -3660,6 +3664,10 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
+      - name: aeat-cert
+        secret:
+          secretName: sii-certificate
+          defaultMode: 256
 ---
 apiVersion: apps/v1
 kind: Deployment
