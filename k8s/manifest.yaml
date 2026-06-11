@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260611-10@sha256:a6108e727d3a9c6720084bbae0acfcee60e6e5c2242d6d1efc24d21854ef1dbc
+          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260611-11@sha256:6ec515996307c3f89b007fb2830170cf41ac4a087afe1f0eada5994afe8ca786
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -38,6 +38,21 @@ spec:
             # re-render — the flash users saw as "la página no carga".
             - name: TZ
               value: Europe/Madrid
+            # Validación 369: lectura de OssCountryDaily en la BD de la app
+            # shopify-sii (misma instancia CNPG, database `skirmshop`). Mismo
+            # patrón que el accounting-sweep. Fail-soft si falta.
+            - name: SII_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: username
+            - name: SII_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-app
+                  key: password
+            - name: SII_DATABASE_URL
+              value: postgresql://$(SII_DB_USER):$(SII_DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmshop
             - name: NODE_ENV
               value: production
             - name: PORT
