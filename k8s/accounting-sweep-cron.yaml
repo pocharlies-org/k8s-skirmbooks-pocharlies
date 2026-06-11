@@ -173,6 +173,44 @@ data:
                                  {"invoice_kind": "issued", "invoice_id": str(r["id"])}))
             print(f"[acc-sweep] {t}: emitidas sin asiento={len(rows)}", flush=True)
 
+        # ---- Fase 4: sii_invoices sin asiento/stamp → derived.from_sii_invoice
+        # (el handler trae legacy-twin guard: estampa el asiento legacy si ya
+        # existe vía issued_invoices; postea él solo tras el cutover)
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT id FROM gestoria_invoicing.sii_invoices
+                WHERE tenant_id=$1 AND journal_entry_id IS NULL
+                  AND invoice_date >= '2026-01-01'
+                ORDER BY invoice_date
+                LIMIT $2
+                """, t, BATCH_ISSUED,
+            )
+            for r in rows:
+                commands.append((f"accounting.{t}.derived.from_sii_invoice", t,
+                                 "accounting.derived.from_sii_invoice",
+                                 {"sii_invoice_id": str(r["id"])}))
+            print(f"[acc-sweep] {t}: sii_invoices sin stamp={len(rows)}", flush=True)
+
+        # ---- Fase 5: payouts casados con banco sin asiento → derived.from_payout
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT id FROM gestoria_banking.processor_payouts
+                WHERE tenant_id=$1 AND movement_id IS NOT NULL
+                  AND journal_entry_id IS NULL
+                ORDER BY arrival_date
+                LIMIT $2
+                """, t, BATCH_ISSUED,
+            )
+            for r in rows:
+                commands.append((f"accounting.{t}.derived.from_payout", t,
+                                 "accounting.derived.from_payout",
+                                 {"payout_id": str(r["id"])}))
+            print(f"[acc-sweep] {t}: payouts sin asiento={len(rows)}", flush=True)
+
         await conn.close()
         if not commands:
             print("[acc-sweep] nada que hacer", flush=True)

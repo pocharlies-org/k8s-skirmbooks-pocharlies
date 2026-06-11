@@ -205,14 +205,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-5-delta@sha256:57e4af1f93c79831307c658d0cc930e947061af727904c8a275e630714c6928d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:capa1-20260611-1-delta@sha256:cd00c6a0ac04dfbd564d97845ed77313f30729b9b9729e2038bb03b704d86eb1
         args:
         - synapse_adapter_accounting
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
           value: /etc/synapse/adapter-gestoria-accounting.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: derived.from_invoice,derived.from_movement,derived.from_payslip,derived.from_transfer,derived.from_stripe_charge
+          value: derived.from_invoice,derived.from_movement,derived.from_payslip,derived.from_transfer,derived.from_sii_invoice,derived.from_payout,processor_fees.run
         ports:
         - name: metrics
           containerPort: 9524
