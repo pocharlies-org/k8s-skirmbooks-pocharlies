@@ -1589,7 +1589,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:emailsearch-20260612-2-delta@sha256:4839c0ed65b97526dfa421a9b1438a1314d5123a7bccb147e68e09ccc8440ec1
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:emailsearch-20260612-3-delta@sha256:88418becc35b4296810e8f049670d34394d2c97caf93f1cc4d7edefd586050db
         args:
         - synapse_adapter_invoicing
         env:
