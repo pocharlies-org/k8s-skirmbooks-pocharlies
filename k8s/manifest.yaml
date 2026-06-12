@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260612-4@sha256:f77f4214bd885e266c104a6b1874c416b2cb941b1b86396699b484aa311024b3
+          image: harbor.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260612-5@sha256:b714fa95f7d42f9d8bc7fa24c9b8e5287d1fb1f28748d4b340dce0b68a2b46a1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -96,8 +96,21 @@ spec:
               value: $(_RMQUSER)
             - name: AMQP_PASSWORD
               value: $(_RMQPASS)
+            # Broker de los adapters skirmbooks (synapse-rmq = shared-rabbitmq de
+            # sauvage). OJO: shared-rabbitmq.databases.svc es OTRO broker (k8s HA)
+            # sin consumidores de estos comandos — drift histórico de la UI.
+            - name: _SKBUI_RMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: skirmbooks-ui-rmq
+            - name: _SKBUI_RMQ_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: skirmbooks-ui-rmq
             - name: AMQP_URL
-              value: amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse
+              value: amqp://$(_SKBUI_RMQ_USER):$(_SKBUI_RMQ_PASS)@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
             - name: S3_ENDPOINT
               value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
             - name: S3_BUCKET
