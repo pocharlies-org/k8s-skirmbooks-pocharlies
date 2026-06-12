@@ -1589,14 +1589,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocrfix-20260612-3-delta@sha256:f4119cf3b4e55e29d1124af59d2452f2f5fb87d16df8e24269d38b29a59f3330
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:emailsearch-20260612-1-delta@sha256:ef7fa71549efe91ec57d483536ad33a433af526981c0e5395b89cd8512e661fc
         args:
         - synapse_adapter_invoicing
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: ocr.extract
+          value: ocr.extract,email_search.start,email_search.reply
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -1623,6 +1623,10 @@ spec:
           readOnly: true
         - name: credentials
           mountPath: /etc/synapse/credentials
+          readOnly: true
+        # SA con delegación de dominio (gmail.readonly) — búsqueda agéntica de facturas
+        - name: gmail-sa
+          mountPath: /etc/synapse/gmail
           readOnly: true
         - name: synapse-data
           mountPath: /var/lib/synapse
@@ -1651,6 +1655,13 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
+      - name: gmail-sa
+        secret:
+          secretName: picker-secrets
+          defaultMode: 292
+          items:
+          - key: GA4_CREDENTIALS_JSON
+            path: sa.json
       - name: synapse-data
         emptyDir: {}
 ---

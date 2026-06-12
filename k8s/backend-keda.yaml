@@ -471,7 +471,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.invoicing\.ocr\.extract$
+      queueName: ^adapter\.invoicing\.(ocr\.extract|email_search\.(start|reply))$
       useRegex: "true"
       operation: sum
     authenticationRef:
