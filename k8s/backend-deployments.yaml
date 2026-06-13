@@ -1221,6 +1221,9 @@ spec:
         - name: credentials
           mountPath: /etc/synapse/credentials
           readOnly: true
+        - name: aeat-cert
+          mountPath: /etc/synapse/credentials/aeat
+          readOnly: true
         resources:
           requests:
             cpu: 50m
@@ -1245,6 +1248,10 @@ spec:
       - name: credentials
         secret:
           secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: aeat-cert
+        secret:
+          secretName: sii-certificate
           defaultMode: 292
 ---
 apiVersion: apps/v1
