@@ -1,0 +1,139 @@
+# Bucle automático de conciliación de FACTURAS de proveedor (skirmbooks).
+#
+# Para no acumular el trabajo a fin de mes. Dos CronJobs command-driven (mismo
+# patrón que accounting-sweep-cron / reconcile-sweep-cron): publican comandos al
+# exchange 'commands' del broker synapse-rmq (donde consumen email_search.start,
+# messaging.send y reconcile.match_movement — todos el mismo broker).
+#
+#   facturas-daily  (10:00 UTC, tras los matchers de la mañana):
+#     - RESOLVE seguimientos vivos (conciliado→resolved; factura hallada→match;
+#       sin factura→pending; búsqueda colgada→reaper)
+#     - DETECT cargos NUEVOS sin conciliar → búsqueda autónoma en buzón + anuncio
+#       en el topic Telegram 'Facturas' (cap anti-spam)
+#     - DRAIN del backlog 'pending' sin buscar aún (silencioso), hasta el cap
+#     - first-run: backfill silencioso del backlog como 'pending'
+#   facturas-weekly (lunes 11:00 UTC): resumen conciliadas vs pendientes + recordatorio
+#
+# Lógica testeada en synapse_adapter_banking.facturas_followup (imagen backend).
+# DRY_RUN gobernado por env FACTURAS_DRY_RUN (default 0).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-facturas-daily
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-facturas-daily
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "0 10 * * *"          # 10:00 UTC, tras imports (06:00) y matchers (≤09:15)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-facturas-daily
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: facturas-daily
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-20260615-3-delta@sha256:fe2eebdfc6b38d7b6c911dca1aeb47eafef89b6abc39c80e2c53f211e6f1f5e5
+            command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
+            env:
+            - name: FACTURAS_TENANT
+              value: skirmshop
+            - name: FACTURAS_SEARCH_CAP
+              value: "12"
+            - name: FACTURAS_ANNOUNCE_CAP
+              value: "8"
+            - name: FACTURAS_REAP_HOURS
+              value: "24"
+            - name: FACTURAS_DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-facturas-weekly
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-facturas-weekly
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "0 11 * * 1"          # lunes 11:00 UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-facturas-weekly
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: facturas-weekly
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-20260615-3-delta@sha256:fe2eebdfc6b38d7b6c911dca1aeb47eafef89b6abc39c80e2c53f211e6f1f5e5
+            command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
+            env:
+            - name: FACTURAS_TENANT
+              value: skirmshop
+            - name: FACTURAS_DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
