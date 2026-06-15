@@ -1479,7 +1479,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-20260615-1-delta@sha256:5e9ff2d06fc7565ec126427bf66e8da764860efd0e84fa143ee3ea5e9f914e06
         args:
         - synapse_adapter_invoicing
         env:
@@ -1582,14 +1582,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-20260615-3-delta@sha256:fe2eebdfc6b38d7b6c911dca1aeb47eafef89b6abc39c80e2c53f211e6f1f5e5
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-20260615-1-delta@sha256:5e9ff2d06fc7565ec126427bf66e8da764860efd0e84fa143ee3ea5e9f914e06
         args:
         - synapse_adapter_invoicing
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: ocr.extract,email_search.start,email_search.reply
+          value: ocr.extract,email_search.start,email_search.reply,patterns.analyze
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET

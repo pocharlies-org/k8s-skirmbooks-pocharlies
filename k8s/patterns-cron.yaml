@@ -1,0 +1,67 @@
+# Detección semanal de PATRONES de facturas recurrentes (skirmbooks).
+#
+# Lunes 04:00 UTC (antes del facturas-daily de las 10:00): ejecuta la detección
+# determinista (pattern_detect) sobre ~13 meses y publica un comando
+# invoicing.skirmshop.patterns.analyze por candidato (proveedor × cluster). El
+# análisis LLM (label, origen, "cómo conseguir la siguiente") corre en el handler
+# del deployment skirmbooks-invoicing-ocr. Cap PATTERNS_ANALYZE_CAP (presupuesto LLM).
+# Mismo patrón command-driven que facturas-cron / accounting-sweep-cron.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-patterns-weekly
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-patterns-weekly
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "0 4 * * 1"            # lunes 04:00 UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-patterns-weekly
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: patterns-sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-20260615-1-delta@sha256:5e9ff2d06fc7565ec126427bf66e8da764860efd0e84fa143ee3ea5e9f914e06
+            command: ["python", "-m", "synapse_adapter_invoicing.patterns_sweep"]
+            env:
+            - name: FACTURAS_TENANT
+              value: skirmshop
+            - name: PATTERNS_ANALYZE_CAP
+              value: "20"
+            - name: PATTERNS_DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
