@@ -702,7 +702,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:banking-reconcile-fix-20260616-1@sha256:30c66912e32c627a3deadfbce413a53bd89ed755fccc9f18fd68c47247dfef89
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:banking-reconcile-fireforget-20260616-1@sha256:1ab488cc0e212015e54e0cf04983c5b5823f749a881be9007385bdb12b0c8963
         args:
         - synapse_adapter_banking
         env:

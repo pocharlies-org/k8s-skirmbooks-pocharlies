@@ -89,13 +89,14 @@ data:
                     "plugin": "banking.reconcile.match_movement",
                     "params": {"movement_id": mid},
                     "attempt": 1,
+                    "fire_and_forget": True,
                 }).encode()
                 await ex.publish(
                     aio_pika.Message(
                         body=body, content_type="application/json",
                         delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
                         message_id=msg_id,
-                        headers={"tenant_id": t, "source": "reconcile-sweep"},
+                        headers={"tenant_id": t, "source": "reconcile-sweep", "fire_and_forget": "true"},
                     ),
                     routing_key=f"banking.{t}.reconcile.match_movement",
                 )
