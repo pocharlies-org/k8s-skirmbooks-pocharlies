@@ -163,7 +163,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.banking\.(movements\.import_psd2|movements\.import_stripe_webhook|movements\.import_paypal_webhook|movements\.import_csv|movements\.daily_sync|import_monei)$
+      queueName: ^adapter\.banking\.(movements\.import_psd2|movements\.import_stripe_webhook|movements\.import_paypal_webhook|movements\.import_csv|movements\.daily_sync|import_monei|import_paypal|import_shopify_payments|resolve_order_refs|sync_sii_invoices|match_txn_invoices|match_payout_movements|import_stripe|import_klarna)$
       useRegex: 'true'
       operation: sum
     authenticationRef:
