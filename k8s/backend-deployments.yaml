@@ -1479,7 +1479,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-zipfix2-20260619@sha256:7ea344dc4122e7cf6de5f18ef9181667e29faa6c04f2db802c22399e9e9b7773
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-zipfix3-20260619@sha256:eb529234986f7faca28f724978bcff82f1e15c3230565a8d3af86de9564236ad
         args:
         - synapse_adapter_invoicing
         env:
@@ -1582,7 +1582,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-zipfix2-20260619@sha256:7ea344dc4122e7cf6de5f18ef9181667e29faa6c04f2db802c22399e9e9b7773
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-zipfix3-20260619@sha256:eb529234986f7faca28f724978bcff82f1e15c3230565a8d3af86de9564236ad
         args:
         - synapse_adapter_invoicing
         env:
