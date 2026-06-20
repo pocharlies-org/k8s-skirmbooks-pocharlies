@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:paypal-card-20260620@sha256:4d365ab2b2445dd3875a39ff4d6c2122dcbbb8915000bd33bcc9cd1ceb321dc1
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:multiempresa-20260620-1554@sha256:77ce5e6534b61c812f71c0dbc3350eebb3c6a22888e860ba1a2390c59ef9355e
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
