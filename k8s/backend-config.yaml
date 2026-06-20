@@ -106,7 +106,7 @@ data:
     litellm:\n  base_url: http://litellm.litellm.svc.cluster.local:4000/v1\n  text_model:\
     \ tooling\n  vision_model: tooling\n  timeout_s: 120\n  max_images_per_pdf: 8\n\
     storage:\n  backend: s3\n  endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000\n  bucket: skirmshop-drive\n  region: us-east-1\n  prefix: skirmbooks/invoicing\n  access_key_env: AWS_ACCESS_KEY_ID\n  secret_key_env: AWS_SECRET_ACCESS_KEY\n  secure: false\n  root: /var/lib/synapse/gestoria/invoicing\n  pdf_dpi: 200\n  image_format:\
-    \ png\norphan_request:\n  timeout_days: 14\ntenants:\n- skirmshop\n"
+    \ png\norphan_request:\n  timeout_days: 14\ndocintake_gate:\n  enabled: true\ntenants:\n- skirmshop\n"
 ---
 apiVersion: v1
 kind: ConfigMap
