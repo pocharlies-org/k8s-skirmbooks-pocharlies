@@ -619,7 +619,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260620-1606@sha256:93fb39f325540cb9f9db2f8d5850cec754d129e90a49465de564682831dcb29d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260620-1606@sha256:93fb39f325540cb9f9db2f8d5850cec754d129e90a49465de564682831dcb29d
         args:
         - synapse_adapter_banking
         env:
@@ -1119,7 +1119,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260620-1606@sha256:93fb39f325540cb9f9db2f8d5850cec754d129e90a49465de564682831dcb29d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260620-1606@sha256:93fb39f325540cb9f9db2f8d5850cec754d129e90a49465de564682831dcb29d
         args:
         - synapse_adapter_identity
         env:
