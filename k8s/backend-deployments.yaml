@@ -619,14 +619,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260620-1606@sha256:93fb39f325540cb9f9db2f8d5850cec754d129e90a49465de564682831dcb29d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260621-0035@sha256:6891b7f9cb6c6fef8ea0bf6dbe6dcc0596c1ed7aa92fa1c81f0fb2b3f3822ea9
         args:
         - synapse_adapter_banking
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: movements.import_psd2,movements.import_stripe_webhook,movements.import_paypal_webhook,movements.import_csv,movements.daily_sync,import_monei,import_paypal,import_shopify_payments,resolve_order_refs,sync_sii_invoices,match_txn_invoices,match_payout_movements,import_stripe,import_klarna
+          value: movements.import_psd2,movements.import_stripe_webhook,movements.import_paypal_webhook,movements.import_csv,movements.daily_sync,import_monei,import_paypal,import_shopify_payments,resolve_order_refs,sync_sii_invoices,match_txn_invoices,match_payout_movements,import_stripe,import_klarna,recurrence.detect
         ports:
         - name: metrics
           containerPort: 9522
