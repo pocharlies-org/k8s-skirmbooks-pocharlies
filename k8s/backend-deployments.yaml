@@ -626,7 +626,7 @@ spec:
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: movements.import_psd2,movements.import_stripe_webhook,movements.import_paypal_webhook,movements.import_csv,movements.daily_sync,import_monei,import_paypal,import_shopify_payments,resolve_order_refs,sync_sii_invoices,match_txn_invoices,match_payout_movements,import_stripe,import_klarna,recurrence.detect
+          value: movements.import_psd2,movements.import_stripe_webhook,movements.import_paypal_webhook,movements.import_csv,movements.daily_sync,import_monei,import_paypal,import_shopify_payments,resolve_order_refs,sync_sii_invoices,match_txn_invoices,match_payout_movements,import_stripe,import_klarna
         ports:
         - name: metrics
           containerPort: 9522
