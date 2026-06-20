@@ -415,7 +415,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '10'
-      queueName: ^adapter\.invoicing\.(incoming\.ingest|received\.confirm|received\.reject|orphan\.request_invoice|supplier\.upsert|customer\.upsert)$
+      queueName: ^adapter\.invoicing\.(incoming\.ingest|received\.confirm|received\.reject|orphan\.request_invoice|supplier\.upsert|customer\.upsert|invoice_request\.draft_compose|invoice_request\.draft_update|invoice_request\.draft_prompt_edit|invoice_request\.draft_send|invoice_request\.draft_delete)$
       useRegex: 'true'
       operation: sum
     authenticationRef:
