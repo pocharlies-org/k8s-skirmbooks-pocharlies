@@ -64,6 +64,15 @@ spec:
             # lo fija la app por checkout (set_config), ya NO va en el DSN.
             - name: TENANT_ID
               value: skirmshop
+            # Auth multi-empresa (Fase 1). MANTENER "false" hasta desplegar una imagen
+            # de skirmbooks-ui que incluya /login + el gate (construida desde main ≥
+            # d2d5ea5). Con "true" el gate exige sesión salvo allowlist (login/logout,
+            # /assets, /webhooks, callbacks PSD2). Ver docs/MULTIEMPRESA_DEPLOY.md.
+            - name: AUTH_ENABLED
+              value: "false"
+            # SESSION_SECRET (HMAC de la cookie sb_tenant firmada + sesión __sb_session)
+            # se inyecta vía envFrom: skirmbooks-ui-secrets — sembrar la clave
+            # SESSION_SECRET (32+ bytes aleatorios) en Vault/ESO ANTES de AUTH_ENABLED=true.
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
