@@ -619,7 +619,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:docintake-gate2-20260620@sha256:822b90d4d4d346cd288e9aee18a5b8d5de776aae55b3164e9dcc007bec1b58cf
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:paypal-card-20260620@sha256:42900dc34f9e8035798da3af52657ade7de2cc275ee087e9ddca2718f4f74eb6
         args:
         - synapse_adapter_banking
         env:
