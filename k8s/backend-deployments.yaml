@@ -1094,6 +1094,13 @@ metadata:
     synapse.io/worker-profile: core
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
+  annotations:
+    # P0 trust-boundary hardening (RHO): auth.set_password / auth.grant_tenant
+    # removed from SYNAPSE_COMMAND_ACTIONS — no legitimate AMQP publisher exists
+    # (UI manages users via direct SQL q()); they were broker-side escalation
+    # surface. Verified 0 publishers in skirmbooks-gestoria-src/drive-ingest/
+    # web-operator (only @handler registrations). GATED on rho-security sign-off.
+    pocharlies.io/security-note: "auth.set_password,auth.grant_tenant dropped from SYNAPSE_COMMAND_ACTIONS 2026-06-21"
 spec:
   strategy:
     type: Recreate
@@ -1126,7 +1133,7 @@ spec:
         - name: SYNAPSE_ADAPTER_GESTORIA_IDENTITY_CONFIG
           value: /etc/synapse/adapter-gestoria-identity.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: user.create,user.update_role,tenant.create,tenant.update,onboarding.advance_step,auth.login,auth.me,auth.set_password,auth.grant_tenant
+          value: user.create,user.update_role,tenant.create,tenant.update,onboarding.advance_step,auth.login,auth.me
         ports:
         - name: metrics
           containerPort: 9521
