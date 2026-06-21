@@ -64,12 +64,15 @@ spec:
             # lo fija la app por checkout (set_config), ya NO va en el DSN.
             - name: TENANT_ID
               value: skirmshop
-            # Auth multi-empresa (Fase 1). MANTENER "false" hasta desplegar una imagen
-            # de skirmbooks-ui que incluya /login + el gate (construida desde main ≥
-            # d2d5ea5). Con "true" el gate exige sesión salvo allowlist (login/logout,
-            # /assets, /webhooks, callbacks PSD2). Ver docs/MULTIEMPRESA_DEPLOY.md.
+            # Auth multi-empresa + nivel CUENTA. ACTIVADO 2026-06-21 con la imagen
+            # accounts-tier-20260621 (de main ac2e007: /login + gate + RLS account-aware
+            # + SESSION_SECRET fail-closed). Con "true" el gate exige sesión salvo allowlist
+            # (login/logout, /assets, /webhooks, callbacks PSD2) y el aislamiento cross-cuenta
+            # pasa a ser efectivo (cada usuario ve solo su cuenta; Dani=platform-admin ve todo).
+            # REQUISITO ya cumplido: SESSION_SECRET (>=32) sembrado en skirmbooks-ui-secrets +
+            # NODE_ENV=production (cookies Secure). Volver a "false" = legacy LAN sin login.
             - name: AUTH_ENABLED
-              value: "false"
+              value: "true"
             # SESSION_SECRET (HMAC de la cookie sb_tenant firmada + sesión __sb_session)
             # se inyecta vía envFrom: skirmbooks-ui-secrets — sembrar la clave
             # SESSION_SECRET (32+ bytes aleatorios) en Vault/ESO ANTES de AUTH_ENABLED=true.
