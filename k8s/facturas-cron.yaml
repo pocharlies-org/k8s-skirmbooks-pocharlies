@@ -50,7 +50,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-20260615-2-delta@sha256:eb1f13c1882855b18d8a8f8ef469f2b6bb87b028296c239297dd8419dbbead3a
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:weekly-date-20260622@sha256:3a4d354d37c507201ed368b866f77e63ec9b05fade847d94f0e2e6735442d919
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
@@ -114,7 +114,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-weekly
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:patterns-20260615-2-delta@sha256:eb1f13c1882855b18d8a8f8ef469f2b6bb87b028296c239297dd8419dbbead3a
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:weekly-date-20260622@sha256:3a4d354d37c507201ed368b866f77e63ec9b05fade847d94f0e2e6735442d919
             command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
             env:
             - name: FACTURAS_TENANT
