@@ -1126,7 +1126,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:p3-20260621@sha256:65935d90508a1aaddf67886a97863797304ccc54e9254cbee6e656c2bc85f9c0
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:p4p5-20260622@sha256:3290f62b801d53ca8a17b3416b88c32cfafed96679b0ee462aca0d04dd481fa2
         args:
         - synapse_adapter_identity
         env:
