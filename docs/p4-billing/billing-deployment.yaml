@@ -1,0 +1,179 @@
+# =============================================================================
+# skirmbooks-billing — microservicio SaaS billing (dominio SEPARADO del bancario)
+# =============================================================================
+# DOMINIO (P4_BILLING_DESIGN §0): este servicio cobra a las CUENTAS de skirmbooks
+# (gestorías/SLs) la suscripción del SaaS. NO toca `gestoria_banking`. Tiene su
+# propio schema (`gestoria_billing`), su propio role PG (`gestoria_billing_app`) y
+# sus propias claves Stripe (cuenta Stripe SaaS distinta de la bancaria del
+# merchant). Si un cargo de suscripción entrara por el pipeline bancario
+# contaminaría asientos/IVA/303 → por eso es un microservicio aparte.
+#
+# ESTADO: MODO TEST, INERTE hasta sembrar claves.
+#   - El ExternalSecret `skirmbooks-billing-secrets` (billing-secrets-external.yaml)
+#     lee `secret/skirmshop/skirmbooks-billing`, que AÚN NO EXISTE en Vault. Las
+#     claves Stripe (test) las siembra el usuario por break-glass cuando las tenga.
+#   - Hasta entonces el ES queda SecretSyncedError/empty → el Secret existe vacío
+#     (ver billing-secrets-external.yaml: target con deletionPolicy Retain y un
+#     fallback que garantiza que el Secret EXISTE aunque esté vacío) y el pod
+#     arranca igualmente (envFrom de un Secret con 0 claves NO rompe el arranque).
+#   - El servicio (lane backend, FastAPI) DEBE arrancar fail-safe: sin
+#     STRIPE_SECRET_KEY /healthz=200 (vivo) pero /billing/checkout y
+#     /billing/webhook devuelven 503 "billing not configured". Inerte, no roto.
+#
+# CONTRATO HTTP (lane backend):  puerto 8590
+#   GET  /healthz            → liveness/readiness (200 siempre que el proceso vive)
+#   POST /billing/checkout    → crea Stripe Checkout Session (in-cluster, UI)
+#   POST /billing/webhook     → recibe eventos Stripe (raw body, verifica firma)
+#
+# PATRÓN DE DEPLOY: idéntico a manifest.yaml (UI) y backend-deployments.yaml:
+#   nodeSelector role=edge + toleration, imagePullSecrets harbor-pull,
+#   imagen harbor.lan.e-dani.com/homelab/* (registry de CI, in-cluster, sin 413).
+#
+# IMAGEN: el tag/digest los rellena la lane backend cuando el servicio esté en CI
+#   (ver release.yml job `billing` propuesto en docs). El placeholder de abajo NO
+#   es desplegable tal cual (sin digest) — el bump de imagen real lo hace el commit
+#   de release, igual que skirmbooks-ui. Marcado para que ArgoCD/usuario lo note.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-billing
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-billing
+    app.kubernetes.io/name: skirmbooks-billing
+    app.kubernetes.io/part-of: skirmbooks
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-billing
+    synapse.io/domain: billing
+spec:
+  # Modo test / inerte: 1 réplica. El servicio es idempotente en webhooks (DEFINER
+  # ignora eventos out-of-order) → escalable a N en el futuro sin cambios de estado.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: skirmbooks-billing
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-billing
+        app.kubernetes.io/name: skirmbooks-billing
+        e-dani.com/component: skirmbooks-billing
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: harbor-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: billing
+          # PLACEHOLDER — la lane backend / release lo reemplaza por un ref con @sha256
+          # (immutable digest) cuando la imagen esté en harbor.lan. NO desplegar este
+          # tag flotante sin digest a prod (política del repo: pin por digest, ver UI).
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-billing:test-PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8590
+              protocol: TCP
+          env:
+            - name: TZ
+              value: Europe/Madrid
+            - name: PORT
+              value: "8590"
+            - name: HOST
+              value: 0.0.0.0
+            # Stripe API base — default oficial. Override sólo para tests con
+            # stripe-mock. NO es un secreto (es endpoint público).
+            - name: STRIPE_API_BASE
+              value: https://api.stripe.com
+            # DSN del role PROPIO de billing (gestoria_billing_app). NO reutiliza
+            # `shared-postgres-app` (ese es el credencial app general de la UI). El
+            # aislamiento de dominio (§6) exige un role distinto SIN acceso a
+            # gestoria_banking. GESTORIA_DB_URL viene del ExternalSecret de billing
+            # (clave GESTORIA_DB_URL en secret/skirmshop/skirmbooks-billing) →
+            # entra por envFrom abajo, NO se define aquí en claro.
+            #   Forma esperada (la siembra el usuario junto a las claves Stripe):
+            #   postgresql://gestoria_billing_app:<pass>@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+          envFrom:
+            # Claves Stripe + GESTORIA_DB_URL del role billing. Mientras el path
+            # Vault no exista, este Secret estará vacío → envFrom no aporta claves
+            # pero TAMPOCO impide el arranque (k8s ignora un secretRef vacío si el
+            # Secret existe; billing-secrets-external garantiza que existe).
+            - secretRef:
+                name: skirmbooks-billing-secrets
+                optional: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8590
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8590
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skirmbooks-billing
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-billing
+    app.kubernetes.io/name: skirmbooks-billing
+spec:
+  type: ClusterIP
+  selector:
+    app: skirmbooks-billing
+  ports:
+    - name: http
+      port: 8590
+      targetPort: 8590
+      protocol: TCP
+# DNS: skirmbooks-billing.skirmshop.svc.cluster.local:8590
+#   - La UI Remix (in-cluster) llama POST /billing/checkout aquí (no público).
+#   - El IngressRoute público del webhook (billing-webhook-ingress.yaml) enruta
+#     SOLO /billing/webhook a este Service desde traefik-edge.

@@ -1,0 +1,79 @@
+# =============================================================================
+# skirmbooks-billing-webhook-public — ruta PÚBLICA SÓLO para el webhook de Stripe
+# =============================================================================
+# POR QUÉ ES PÚBLICA (y la UI no):
+#   La UI skirmbooks es LAN-only (skirmbooks.lan.e-dani.com → traefik-lan) o
+#   pública-pero-SSO (skirmbooks.e-dani.com vía edge-other-legacy-proxies con el
+#   middleware keycloak/sso-chain). Stripe POSTea desde internet a /billing/webhook
+#   y NO puede pasar SSO → necesita una ruta pública DEDICADA, SIN sso-chain,
+#   acotada EXCLUSIVAMENTE al path del webhook. El checkout NO va aquí (lo llama la
+#   UI in-cluster), ni /healthz (interno).
+#
+# ENTRYPOINT PÚBLICO ELEGIDO (evidencia, no asunción):
+#   El cluster tiene DOS Traefik:
+#     - traefik-lan (LB 192.168.50.240): sólo LAN/Tailscale, sirve *.lan.e-dani.com.
+#       NO internet-facing.
+#     - traefik-edge (ns traefik-edge, ingressClassName=traefik-edge): INTERNET-
+#       facing, sirve los hosts públicos *.e-dani.com y *.skirmshop.es
+#       (sauvage.e-dani.com, track.skirmshop.es, harbor.e-dani.com, dgx.e-dani.com…).
+#   Patrón ya en uso por webhooks públicos del mismo namespace:
+#     skirmshop/back-in-stock-public y skirmshop/skirmshop-labels-track-public →
+#     IngressRoute EN ns skirmshop con `ingressClassName: traefik-edge` +
+#     `entryPoints: [websecure]` + service local. traefik-edge enruta cross-host;
+#     el `ingressClassName` selecciona el Traefik correcto.
+#
+# HOST PÚBLICO:
+#   `skirmbooks.e-dani.com` YA resuelve públicamente (edge-other-legacy-proxies →
+#   skirmbooks-ui:80, gated por sso-chain). Añadimos AQUÍ una regla del MISMO host
+#   con PathPrefix(`/billing/webhook`), SIN sso-chain, con priority MAYOR que la
+#   regla catch-all del host (que es Host(`skirmbooks.e-dani.com`) sin path, prio
+#   por defecto = longitud del matcher). Traefik resuelve por priority: la regla
+#   con path explícito y priority alta gana para /billing/webhook; el resto del
+#   host sigue cayendo en la UI SSO. Resultado: SOLO /billing/webhook queda público
+#   sin auth, apuntando al servicio billing.
+#
+#   ALTERNATIVA (si se prefiere host dedicado en vez de compartir): crear
+#   `billing.skirmshop.es` o `billing.e-dani.com` (registro DNS público → IP edge)
+#   y un Host(`billing.skirmshop.es`) && PathPrefix(`/billing/webhook`). Requiere
+#   un registro DNS nuevo + cert (el store default de traefik-edge ya hace ACME
+#   wildcard para *.e-dani.com y *.skirmshop.es, así que un subdominio nuevo bajo
+#   esos no necesita cert manual). Documentado en docs/billing-deploy-plan.md.
+#
+# SEGURIDAD: la AUTHZ real del webhook es la firma Stripe (HMAC con
+#   STRIPE_WEBHOOK_SIGNING_SECRET, raw body, tolerancia 5min) — la valida el
+#   servicio billing, no el ingress (igual que el webhook bancario). Por eso NO
+#   ponemos sso-chain. Mientras el signing secret no esté sembrado, el backend
+#   responde 503 a /billing/webhook (fail-safe) → Stripe reintenta; ningún evento
+#   se procesa sin firma verificable.
+# =============================================================================
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: skirmbooks-billing-webhook-public
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks-billing
+    app.kubernetes.io/part-of: skirmbooks
+    e-dani.com/component: skirmbooks-billing
+spec:
+  entryPoints:
+    - websecure
+  # Selecciona el Traefik internet-facing (traefik-edge), NO el traefik-lan.
+  ingressClassName: traefik-edge
+  routes:
+    - kind: Rule
+      # SÓLO el webhook. PathPrefix tolera Stripe añadiendo querystrings/segmentos;
+      # si se quiere exactitud estricta, cambiar a Path(`/billing/webhook`).
+      match: Host(`skirmbooks.e-dani.com`) && PathPrefix(`/billing/webhook`)
+      # priority alta para ganar a la regla catch-all Host(`skirmbooks.e-dani.com`)
+      # de edge-other-legacy-proxies (que NO tiene path → priority baja).
+      priority: 10000
+      services:
+        - name: skirmbooks-billing
+          namespace: skirmshop
+          port: 8590
+      # SIN middlewares: ninguna sso-chain. La firma Stripe es la única AUTHZ.
+  tls:
+    store:
+      name: default
+      namespace: traefik-edge
