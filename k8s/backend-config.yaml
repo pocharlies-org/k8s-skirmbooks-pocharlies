@@ -193,9 +193,12 @@ data:
     rabbitmq:
       url: amqp://synapse_adapter_gestoria_tax@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
     aeat:
-      # Fase B: 303 por cable contra AEAT PRE (environment test => prewww1).
-      # Endpoints PresBasicaDos/ServValiDos = defaults de config.py.
-      environment: test
+      # Fase C: 303 por cable contra AEAT PRODUCCIÓN (environment prod => www1).
+      # Cert sii-certificate verificado vs PROD (handshake mTLS OK 2026-06-24).
+      # NO hay auto-submit: la presentación real es manual (UI, draft approved +
+      # botón "Presentar" con confirm). ServValiDos pre-valida cada F01.
+      # SII libros registro sigue en PRE (skirmbooks-sii-inbound-config) — Talenom.
+      environment: prod
       request_timeout_s: 180.0
       modelo_modes:
         "303": wire
