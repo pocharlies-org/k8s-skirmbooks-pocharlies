@@ -166,11 +166,31 @@ metadata:
   name: skirmbooks-sii-inbound-config
   namespace: skirmshop
 data:
-  adapter-gestoria-sii-inbound.yaml: "service: synapse-adapter-gestoria-sii-inbound\n\
-    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9530\n\
-    database:\n  dsn: postgresql://gestoria_sii_inbound_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_sii_inbound@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
-    aeat:\n  environment: test\ntenants:\n- skirmshop\n"
+  # NOTA aeat.environment: el PUSH de NUESTRO libro (push_recibida/reconcile vs
+  # nuestro espejo) históricamente iba a PRE (Talenom). El import_recibidas lee el
+  # LIBRO REMOTO REAL de la gestoría, que vive en PRODUCCIÓN → environment: production
+  # (cert sii-certificate verificado vs PROD, handshake mTLS OK 2026-06-24).
+  # titular = SKIRMSHOP SPAIN SL / B02642775 (clave de dedupe del ledger).
+  adapter-gestoria-sii-inbound.yaml: |
+    service: synapse-adapter-gestoria-sii-inbound
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9530
+    database:
+      dsn: postgresql://gestoria_sii_inbound_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+      min_size: 1
+      max_size: 4
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_sii_inbound@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    aeat:
+      environment: production
+      titular_nif: B02642775
+      titular_nombre: SKIRMSHOP SPAIN SL
+    tenants:
+    - skirmshop
 ---
 apiVersion: v1
 kind: ConfigMap

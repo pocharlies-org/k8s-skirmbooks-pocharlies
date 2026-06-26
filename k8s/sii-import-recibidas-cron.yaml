@@ -1,0 +1,168 @@
+# Disparador durable del IMPORT del libro de la gestoría (facturas recibidas
+# registradas en el SII de AEAT) → gestoria_audit.gestoria_received_ledger.
+#
+# Contexto: skirmbooks es command-driven (sin engine de workflows desplegado).
+# El handler `sii.import_recibidas` consulta ConsultaLRFacturasRecibidas contra
+# AEAT PRODUCCIÓN con el cert de la sociedad (mTLS) y hace UPSERT idempotente del
+# libro REMOTO real (lo que la gestoría ya presentó). Es la baseline de la
+# auditoría comparativa "libro gestoría vs skirmbooks vs banco".
+#
+# Este CronJob publica mensualmente, al broker synapse-rmq (exchange `commands`),
+# el comando del MES ANTERIOR para cada tenant:
+#   routing_key = sii.<tenant>.import_recibidas
+#   plugin      = sii.import_recibidas
+#   params      = {fiscal_year, period_month}
+# Lo consume el deployment skirmbooks-sii-inbound-reconcile
+# (SYNAPSE_COMMAND_ACTIONS incluye import_recibidas + cert sii-certificate montado).
+#
+# Idempotente por diseño: el UPSERT del handler dedupea por
+# (tenant_id, supplier_nif, invoice_number, invoice_date), así que re-ejecutar
+# el mismo mes solo refresca filas. Reusa la imagen + config + credenciales del
+# adapter sii-inbound (aditivo, no toca los Deployments en marcha).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-sii-import-recibidas-script
+  namespace: skirmshop
+data:
+  publish.py: |
+    """Publica sii.<tenant>.import_recibidas {fiscal_year, period_month} del mes anterior."""
+    import asyncio, json, os, uuid, datetime
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-sii-inbound.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        # amqp://user@host/... -> amqp://user:pw@host/...   (idem postgresql://)
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    def _prev_month():
+        # Permite override por env (backfill manual): SII_FISCAL_YEAR / SII_PERIOD_MONTH.
+        y = os.getenv("SII_FISCAL_YEAR")
+        m = os.getenv("SII_PERIOD_MONTH")
+        if y and m:
+            return int(y), int(m)
+        today = datetime.date.today()
+        first = today.replace(day=1)
+        prev = first - datetime.timedelta(days=1)
+        return prev.year, prev.month
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_sii_inbound_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_sii_inbound.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        # discovery best-effort (cubre empresas añadidas tras el config)
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[sii-import] tenant discovery skipped: {e}", flush=True)
+        finally:
+            await conn.close()
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        fiscal_year, period_month = _prev_month()
+        print(f"[sii-import] tenants={sorted(tenants)} fiscal_year={fiscal_year} period_month={period_month}", flush=True)
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t in sorted(tenants):
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": "sii.import_recibidas",
+                "params": {"fiscal_year": fiscal_year, "period_month": period_month},
+                "attempt": 1,
+                "fire_and_forget": True,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "sii-import-recibidas-cron", "fire_and_forget": "true"},
+                ),
+                routing_key=f"sii.{t}.import_recibidas",
+            )
+            published += 1
+        await rmq.close()
+        print(f"[sii-import] publicados import_recibidas={published}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-sii-import-recibidas
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-sii-import-recibidas
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  # Día 10 de cada mes a las 04:00 UTC: el libro SII del mes anterior ya está
+  # presentado/asentado por la gestoría (plazo SII = 4 días hábiles).
+  schedule: "0 4 10 * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-sii-import-recibidas
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: publish
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:sii-import-20260626-delta@sha256:04f57710d25f09bac0ecc4e36ac4be3e8f98b1cb300ffda12363e3d528533bb2
+            command: ["python", "/scripts/publish.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-sii-inbound.yaml
+              subPath: adapter-gestoria-sii-inbound.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-sii-import-recibidas-script
+          - name: config
+            configMap:
+              name: skirmbooks-sii-inbound-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

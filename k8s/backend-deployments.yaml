@@ -3443,14 +3443,17 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:sii-import-20260626-delta@sha256:04f57710d25f09bac0ecc4e36ac4be3e8f98b1cb300ffda12363e3d528533bb2
         args:
         - synapse_adapter_sii_inbound
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
           value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: reconcile_aeat
+          # reconcile_aeat (libro nuestro vs AEAT) + import_recibidas (import del
+          # libro REMOTO de la gestoría → gestoria_audit.gestoria_received_ledger).
+          # Ambos consultan ConsultaLRFacturasRecibidas con mTLS → necesitan el cert.
+          value: reconcile_aeat,import_recibidas
         ports:
         - name: metrics
           containerPort: 9530
@@ -3461,6 +3464,11 @@ spec:
           readOnly: true
         - name: credentials
           mountPath: /etc/synapse/credentials
+          readOnly: true
+        # Cert FNMT del sii-app (consulta SII vía mTLS). Secret sii-certificate
+        # → /etc/synapse/aeat/sii.p12 + /etc/synapse/aeat/passphrase.
+        - name: aeat-cert
+          mountPath: /etc/synapse/aeat
           readOnly: true
         resources:
           requests:
@@ -3486,6 +3494,10 @@ spec:
       - name: credentials
         secret:
           secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: aeat-cert
+        secret:
+          secretName: sii-certificate
           defaultMode: 292
 ---
 apiVersion: apps/v1
