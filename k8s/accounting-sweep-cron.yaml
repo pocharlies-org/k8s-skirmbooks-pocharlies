@@ -10,7 +10,12 @@
 #
 # Este CronJob barre cada 15 min, idempotente en cascada (cada fase filtra lo
 # ya hecho Y los handlers deduplican por source_aggregate / UNIQUE):
-#   1. RECIBIDAS:  classified/posted sin journal_entry_id
+#   1a. RECIBIDAS atascadas en 'ocr_extracted' con base ya extraída y sin
+#                  asiento → invoicing.<t>.classify (re-clasifica → la 1b las
+#                  postea en la pasada siguiente). Cierra el agujero del
+#                  re-OCR que regresa el estado a 'ocr_extracted' sin
+#                  re-clasificar, y de facturas que nunca encadenaron classify.
+#   1b. RECIBIDAS:  classified/posted sin journal_entry_id
 #                  → accounting.<t>.derived.from_invoice (kind=received)
 #   2. VENTAS SII: SiiSubmission production (F1/F2, no rectificativas) que no
 #                  estén en issued_invoices (serie SII)
@@ -64,7 +69,39 @@ data:
 
         commands = []  # (routing_key, tenant, plugin, params)
 
-        # ---- Fase 1: recibidas classified/posted sin asiento → derived.from_invoice
+        # ---- Fase 1a: recibidas atascadas en 'ocr_extracted' con base ya
+        # extraída y sin asiento → re-disparar invoicing.classify para que
+        # avancen a 'classified' (la Fase 1b las postea en la pasada siguiente).
+        # Cubre el agujero del re-OCR (ocr.extract pone state='ocr_extracted'
+        # incondicional y NO re-encadena classify) y de recibidas que nunca
+        # encadenaron classify. classify es idempotente (set determinista por
+        # cuenta del proveedor). Guard updated_at>20min para NO pisar el flujo
+        # normal en vuelo (recién OCR-eadas que classify está a punto de tocar).
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT id FROM gestoria_invoicing.incoming_invoices
+                WHERE tenant_id=$1 AND state='ocr_extracted'
+                  AND journal_entry_id IS NULL AND base_imponible IS NOT NULL
+                  AND updated_at < now() - interval '20 minutes'
+                  -- Acotado al ejercicio corriente: NO contabilizar
+                  -- retroactivamente ejercicios viejos (2021-2024 = back-fill
+                  -- diferido por calidad OCR / periodos). Mismo criterio que
+                  -- la Fase 4. Para reactivar un ejercicio histórico se sube
+                  -- esta cota explícitamente.
+                  AND invoice_date >= '2026-01-01'
+                ORDER BY invoice_date NULLS LAST
+                LIMIT $2
+                """, t, BATCH_RECEIVED,
+            )
+            for r in rows:
+                commands.append((f"invoicing.{t}.classify", t,
+                                 "invoicing.classify",
+                                 {"invoice_id": str(r["id"])}))
+            print(f"[acc-sweep] {t}: recibidas re-clasificar(ocr_extracted)={len(rows)}", flush=True)
+
+        # ---- Fase 1b: recibidas classified/posted sin asiento → derived.from_invoice
         for t in sorted(tenants):
             await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
             rows = await conn.fetch(
