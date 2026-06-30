@@ -203,7 +203,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260620-acctfix@sha256:7207e8ae7e9cd41db7c3437c9ec4f4a1ef57cfe8683b0227d50e769335acb511
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:psd2-always-on-20260630-delta@sha256:96e1bf6aa550d9b447e2e94492354b6f975cd9b1c85b569e4ddae24694164311
         args:
         - synapse_adapter_accounting
         env:

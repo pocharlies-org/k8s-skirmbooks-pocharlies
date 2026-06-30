@@ -166,7 +166,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: reauth-check
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:psd2-always-on-20260630-delta@sha256:96e1bf6aa550d9b447e2e94492354b6f975cd9b1c85b569e4ddae24694164311
             command: ["python", "/scripts/reauth_check.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
