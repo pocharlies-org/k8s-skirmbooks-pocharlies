@@ -1,0 +1,149 @@
+# Disparador durable del SYNC DIARIO PSD2 (skirmbooks).
+#
+# Contexto: PSD2 (Enable Banking → CaixaBank) es la fuente de ingestión always-on.
+# El sync inicial ocurre al conectar (in-process en psd2_complete_requisition) y a
+# partir de ahí este CronJob refresca a diario publicando, por tenant, el comando
+# `banking.<tenant>.movements.daily_sync` (plugin `banking.movements.daily_sync`,
+# params {}). El handler daily_sync llama in-process a import_psd2 por cada cuenta
+# activa con lookback incremental.
+#
+# Mismo patrón command-driven que reconcile-sweep-cron / facturas-cron: el script
+# abre su PROPIA conexión AMQP al exchange `commands` (TOPIC) del broker synapse-rmq
+# (el del adapter, en sauvage) — un handler synapse NO puede publicar downstream.
+# Es:
+#   - broker-drift-immune (publica directo al broker correcto),
+#   - idempotente (el handler dedup por ON CONFLICT + rate guard 4 calls/día),
+#   - multi-tenant (discovery best-effort de gestoria_identity.tenants).
+# KEDA ya enruta movements.daily_sync (backend-keda.yaml:166). Reusa la imagen +
+# config + credenciales del adapter banking (aditivo, no toca los Deployments).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-daily-sync-script
+  namespace: skirmshop
+data:
+  daily_sync.py: |
+    """Publica banking.<tenant>.movements.daily_sync por cada tenant."""
+    import asyncio, json, os, uuid, sys
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        # amqp://user@host/... -> amqp://user:pw@host/...   (idem postgresql://)
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        # discovery best-effort (cubre empresas añadidas tras el config)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[daily-sync] tenant discovery skipped: {e}", flush=True)
+        await conn.close()
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        print(f"[daily-sync] tenants={sorted(tenants)}", flush=True)
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t in sorted(tenants):
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": "banking.movements.daily_sync",
+                "params": {},
+                "attempt": 1,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "banking-daily-sync"},
+                ),
+                routing_key=f"banking.{t}.movements.daily_sync",
+            )
+            published += 1
+        await rmq.close()
+        print(f"[daily-sync] publicados daily_sync={published}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-banking-daily-sync
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-daily-sync
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "40 6 * * *"          # 06:40 UTC, antes de matchers (≤09:15) y facturas (10:00)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-banking-daily-sync
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: daily-sync
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+            command: ["python", "/scripts/daily_sync.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-banking-daily-sync-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

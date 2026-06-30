@@ -210,7 +210,7 @@ spec:
         - name: SYNAPSE_ADAPTER_GESTORIA_ACCOUNTING_CONFIG
           value: /etc/synapse/adapter-gestoria-accounting.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: derived.from_invoice,derived.from_movement,derived.from_payslip,derived.from_transfer,derived.from_sii_invoice,derived.from_payout,processor_fees.run
+          value: derived.from_invoice,derived.from_movement,derived.from_payslip,derived.from_transfer,derived.from_sii_invoice,derived.from_payout,derived.book_movement_expense,processor_fees.run
         ports:
         - name: metrics
           containerPort: 9524

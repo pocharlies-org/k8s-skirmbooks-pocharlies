@@ -1,0 +1,191 @@
+# Disparador durable del CHEQUEO DE RE-AUTORIZACIÓN PSD2 (skirmbooks).
+#
+# Contexto: el consentimiento PSD2 (Enable Banking) caduca (~90 días). Si caduca
+# sin re-autorizar, la ingestión always-on se detiene en silencio. El handler
+# banking.psd2.reauth_check marca EX/reauth_needed pero NO puede publicar el aviso
+# (un handler synapse no publica downstream; el handler deja un log placeholder).
+# Por eso este CronJob, además de DISPARAR el handler reauth_check por tenant,
+# detecta las requisitions LN que caducan en ≤14 días (o las cuentas ya en
+# sync_status='reauth_needed') y publica un aviso Telegram al grupo de negocio
+# (messaging.<tenant>.send) para que el humano re-autorice a tiempo.
+#
+# Mismo patrón command-driven que reconcile-sweep-cron / facturas-cron: abre su
+# PROPIA conexión AMQP al exchange `commands` (TOPIC) del broker synapse-rmq.
+# Reusa command_envelope + build_telegram_send_params de synapse_adapter_banking
+# (van en la imagen backend; CERO duplicación) y el publish loop de facturas_daily.
+# KEDA ya enruta psd2.reauth_check (backend-keda.yaml:194) y messaging.send.
+# Reusa imagen + config + credenciales del adapter banking (aditivo).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-reauth-check-script
+  namespace: skirmshop
+data:
+  reauth_check.py: |
+    """Dispara psd2.reauth_check por tenant + avisa Telegram de consentimientos
+    PSD2 que caducan en ≤14d o cuentas en reauth_needed."""
+    import asyncio, json, os, uuid, sys
+    import yaml, asyncpg, aio_pika
+
+    # Reutiliza helpers de envelope/telegram del adapter (van en la imagen backend).
+    from synapse_adapter_banking import facturas_followup as ff
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    # Requisitions LN que caducan dentro de 14 días, o cuentas ya marcadas
+    # reauth_needed. DISTINCT por requisition (una requisition cubre N cuentas).
+    REAUTH_SQL = """
+    SELECT DISTINCT ON (r.id)
+           r.id::text AS requisition_id,
+           r.institution_name,
+           r.institution_id,
+           GREATEST(0, EXTRACT(EPOCH FROM (r.expires_at - now()))/86400.0)::int AS days_left
+      FROM gestoria_banking.psd2_requisitions r
+      JOIN gestoria_banking.bank_accounts ba
+        ON ba.tenant_id = r.tenant_id AND ba.psd2_requisition_id = r.id
+     WHERE r.tenant_id = $1
+       AND r.status = 'LN'
+       AND (
+            ba.sync_status = 'reauth_needed'
+         OR r.expires_at BETWEEN now() AND now() + INTERVAL '14 days'
+       )
+     ORDER BY r.id
+    """
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    def _reauth_text(institution: str, days_left: int) -> str:
+        inst = institution or "tu banco"
+        if days_left <= 0:
+            plazo = "ya ha caducado"
+        elif days_left == 1:
+            plazo = "caduca <b>mañana</b>"
+        else:
+            plazo = f"caduca en <b>{days_left} días</b>"
+        return (
+            f"⚠️ <b>Re-autorización bancaria PSD2</b>\n"
+            f"El acceso a <b>{inst}</b> {plazo}. Sin re-autorizar, la sincronización "
+            f"automática de movimientos se detendrá.\n\n"
+            f"<i>Entra en skirmbooks → Bancos → «Conectar al banco» para renovar el consentimiento.</i>"
+        )
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[reauth-check] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        commands = []  # (routing_key, plugin, params)
+        alerts = {}
+        for t in sorted(tenants):
+            # (a) dispara el handler reauth_check (marca EX/reauth_needed)
+            commands.append((f"banking.{t}.psd2.reauth_check",
+                             "banking.psd2.reauth_check", {}))
+            # (b) avisos Telegram de consentimientos caducando / cuentas reauth_needed
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(REAUTH_SQL, t)
+            for r in rows:
+                text = _reauth_text(r["institution_name"], int(r["days_left"]))
+                commands.append((f"messaging.{t}.send", "messaging.send",
+                                 ff.build_telegram_send_params(text)))
+            alerts[t] = len(rows)
+        await conn.close()
+
+        total_alerts = sum(alerts.values())
+        print(f"[reauth-check] tenants={sorted(tenants)} alerts={alerts} total_alerts={total_alerts}", flush=True)
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        for rk, plugin, params in commands:
+            msg_id, body = ff.command_envelope(plugin, params)
+            # tenant del routing_key: banking.<t>.* / messaging.<t>.*
+            tenant = rk.split(".", 2)[1]
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT, message_id=msg_id,
+                    headers={"tenant_id": tenant, "source": "banking-reauth-check"}),
+                routing_key=rk)
+        await rmq.close()
+        print(f"[reauth-check] publicados={len(commands)} (reauth_check + {total_alerts} avisos)", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-banking-reauth-check
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-reauth-check
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "10 7 * * *"          # 07:10 UTC, tras el daily-sync (06:40)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-banking-reauth-check
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: reauth-check
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+            command: ["python", "/scripts/reauth_check.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-banking-reauth-check-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

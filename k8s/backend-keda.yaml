@@ -51,7 +51,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.accounting\.(derived\.from_invoice|derived\.from_movement|derived\.from_payslip|derived\.from_transfer|derived\.from_sii_invoice|derived\.from_payout|processor_fees\.run)$
+      queueName: ^adapter\.accounting\.(derived\.from_invoice|derived\.from_movement|derived\.from_payslip|derived\.from_transfer|derived\.from_sii_invoice|derived\.from_payout|derived\.book_movement_expense|processor_fees\.run)$
       useRegex: 'true'
       operation: sum
     authenticationRef:
