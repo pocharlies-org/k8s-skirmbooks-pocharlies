@@ -1,0 +1,60 @@
+# KEDA ScaledObjects para los workers del clasificador de gastos (NUEVOS).
+# Escalan a demanda desde 0 según la longitud de cola en el broker synapse-rmq
+# (via la misma TriggerAuthentication `skirmbooks-rabbitmq-http` de backend-keda.yaml,
+# que ya lleva el host baked-in). No tocan los ScaledObjects existentes.
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-banking-classifier
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: classifier
+spec:
+  scaleTargetRef:
+    name: skirmbooks-banking-classifier
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  minReplicaCount: 0
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.banking\.(classify_movement|set_category)$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-fiscal-classifier
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: classifier
+spec:
+  scaleTargetRef:
+    name: skirmbooks-fiscal-classifier
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  minReplicaCount: 0
+  maxReplicaCount: 6
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.fiscal\.classify_movement$
+      useRegex: 'true'
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http

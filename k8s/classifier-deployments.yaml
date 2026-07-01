@@ -1,0 +1,185 @@
+# Expense classifier workers (skirmbooks) — NEW, ISOLATED deployments.
+#
+# Contexto: se despliega el clasificador de gastos como recursos NUEVOS que NO
+# tocan ningún Deployment vivo. En particular NO se reutiliza el Deployment
+# `skirmbooks-banking-reconcile` (cuya imagen viva lleva código de
+# gateway-settlement que NO está en la rama fuente de esta imagen). Estos dos
+# workers corren la imagen nueva `gastos-classifier-*` y sirven SOLO las nuevas
+# acciones de clasificación de movimientos.
+#
+# - skirmbooks-banking-classifier: clon fiel de skirmbooks-banking-reconcile,
+#   args synapse_adapter_banking, sirve classify_movement,set_category.
+# - skirmbooks-fiscal-classifier: clon fiel de skirmbooks-fiscal-validator-analysis,
+#   args synapse_adapter_fiscal_validator, sirve classify_movement.
+#
+# replicas: 0 en ambos — KEDA los escala a demanda (ver classifier-keda.yaml).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-banking-classifier
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-classifier
+    app.kubernetes.io/name: skirmbooks-banking-classifier
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: classifier
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-banking-classifier
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-banking-classifier
+        app.kubernetes.io/name: skirmbooks-banking-classifier
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: banking
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2109-delta@sha256:881985ce908bd34bbca048e4ae4dd000f7df2ff3e32c55f1ac2e5ed756452563
+        args:
+        - synapse_adapter_banking
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
+          value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: classify_movement,set_category
+        ports:
+        - name: metrics
+          containerPort: 9522
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+          subPath: adapter-gestoria-banking.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-banking-config
+          items:
+          - key: adapter-gestoria-banking.yaml
+            path: adapter-gestoria-banking.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-fiscal-classifier
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-fiscal-classifier
+    app.kubernetes.io/name: skirmbooks-fiscal-classifier
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: fiscal
+    synapse.io/worker-profile: classifier
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-fiscal-classifier
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-fiscal-classifier
+        app.kubernetes.io/name: skirmbooks-fiscal-classifier
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: fiscal-validator
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2109-delta@sha256:881985ce908bd34bbca048e4ae4dd000f7df2ff3e32c55f1ac2e5ed756452563
+        args:
+        - synapse_adapter_fiscal_validator
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
+          value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SHARED_VALKEY_SKIRMBOOKS_PASSWORD
+          valueFrom: { secretKeyRef: { name: skirmbooks-shared-valkey, key: password } }
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: classify_movement
+        ports:
+        - name: metrics
+          containerPort: 9526
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+          subPath: adapter-gestoria-fiscal-validator.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-fiscal-validator-config
+          items:
+          - key: adapter-gestoria-fiscal-validator.yaml
+            path: adapter-gestoria-fiscal-validator.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292

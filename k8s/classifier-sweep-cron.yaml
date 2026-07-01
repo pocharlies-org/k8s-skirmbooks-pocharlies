@@ -1,0 +1,183 @@
+# Disparador durable de clasificación de gastos (skirmbooks).
+#
+# Contexto: igual que la conciliación, skirmbooks es command-driven y NO tiene
+# engine de workflows. La clasificación de un movimiento de gasto se dispara
+# publicando el comando `banking.<tenant>.classify_movement` al broker del
+# adapter (synapse-rmq, el de sauvage), NO a shared-rabbitmq (evita el drift de
+# broker que dejaba comandos muertos).
+#
+# Este CronJob barre los `bank_movements` de GASTO (amount < 0) que aún NO tienen
+# categoría (`category IS NULL`) y en estado bookable real
+# (status IN ('imported','matched','unmatched','orphan') — se excluyen
+# 'transfer'/'personal'/'rejected', que no son gasto a clasificar), y publica
+# classify_movement para cada uno. Es:
+#   - broker-drift-immune (publica directo al broker correcto),
+#   - source-agnostic (cubre PSD2/CSV/cualquier importador),
+#   - idempotente (filtra los que ya tienen category -> no reclasifica).
+# Reusa la imagen nueva del clasificador + config + credenciales del adapter
+# banking (aditivo, no toca los Deployments en marcha).
+#
+# NOTA suspend: true — el CronJob se entrega SUSPENDIDO. La clasificación en
+# caliente la disparan los workers/handlers al importar; este sweep es un
+# barrido de recuperación que se activa manualmente (kubectl patch
+# cronjob/skirmbooks-classifier-sweep -p '{"spec":{"suspend":false}}') cuando
+# haga falta reprocesar el backlog.
+#
+# NOTA tenants — el script conserva el descubrimiento best-effort de tenants del
+# reconcile-sweep (config + gestoria_identity.tenants), pero hoy el único tenant
+# vivo es `skirmshop` (config `tenants: [skirmshop]`). Si el descubrimiento
+# fallara, cae a {"skirmshop"} como el original.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-classifier-sweep-script
+  namespace: skirmshop
+data:
+  sweep.py: |
+    """Barre bank_movements de gasto sin categoria y publica classify_movement."""
+    import asyncio, json, os, uuid, sys
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        # amqp://user@host/... -> amqp://user:pw@host/...   (idem postgresql://)
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        # discovery best-effort (cubre empresas anadidas tras el config)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[sweep] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {"skirmshop"}
+        # Restringir a skirmshop: hoy es el unico tenant vivo del despliegue.
+        tenants = {t for t in tenants if t == "skirmshop"} or {"skirmshop"}
+
+        to_classify = {}  # tenant -> [movement_id]
+        for t in sorted(tenants):
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT m.id FROM gestoria_banking.bank_movements m
+                WHERE m.tenant_id=$1
+                  AND m.category IS NULL
+                  AND m.amount < 0
+                  AND m.status IN ('imported','matched','unmatched','orphan')
+                ORDER BY m.value_date
+                """, t,
+            )
+            to_classify[t] = [str(r["id"]) for r in rows]
+        await conn.close()
+
+        total = sum(len(v) for v in to_classify.values())
+        print(f"[sweep] tenants={sorted(tenants)} pendientes={ {t: len(v) for t,v in to_classify.items()} } total={total}", flush=True)
+        if total == 0:
+            return
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t, ids in to_classify.items():
+            for mid in ids:
+                msg_id = uuid.uuid4().hex
+                body = json.dumps({
+                    "workflow_instance_id": str(uuid.uuid4()),
+                    "step_id": msg_id,
+                    "plugin": "banking.classify_movement",
+                    "params": {"movement_id": mid},
+                    "attempt": 1,
+                    "fire_and_forget": True,
+                }).encode()
+                await ex.publish(
+                    aio_pika.Message(
+                        body=body, content_type="application/json",
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                        message_id=msg_id,
+                        headers={"tenant_id": t, "source": "classifier-sweep", "fire_and_forget": "true"},
+                    ),
+                    routing_key=f"banking.{t}.classify_movement",
+                )
+                published += 1
+        await rmq.close()
+        print(f"[sweep] publicados classify_movement={published}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-classifier-sweep
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-classifier-sweep
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  suspend: true                   # entregado SUSPENDIDO — activar manualmente para reprocesar backlog
+  schedule: "0 3 * * *"           # diario 03:00
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-classifier-sweep
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2109-delta@sha256:881985ce908bd34bbca048e4ae4dd000f7df2ff3e32c55f1ac2e5ed756452563
+            command: ["python", "/scripts/sweep.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-classifier-sweep-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
