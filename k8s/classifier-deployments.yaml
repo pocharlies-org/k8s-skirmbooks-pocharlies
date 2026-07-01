@@ -28,7 +28,6 @@ metadata:
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -112,7 +111,6 @@ metadata:
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
