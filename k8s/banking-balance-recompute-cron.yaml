@@ -1,0 +1,140 @@
+# Recompute de bank_movements.balance_after (columna SALDO por movimiento) anclado a
+# bank_accounts.balance. Los movimientos PSD2 (import_psd2) NO rellenan balance_after
+# (solo el importador CSV lo hacia); este cron lo puebla por SQL sin tocar la imagen del
+# adaptador banking (multiempresa-20260611-8, no mergeada a main) -> puro data-job.
+# Corre a las 06:50, tras el daily-sync (06:40 refresca el ancla) y antes de reauth (07:10).
+# RLS FORCE: el app-role gestoria_banking_app NO hace bypass -> set_config('app.tenant_id')
+# por tenant antes de cada UPDATE. Idempotente (guard balance_after IS DISTINCT FROM).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-balance-recompute-script
+  namespace: skirmshop
+data:
+  balance_recompute.py: |
+    """Recomputa bank_movements.balance_after anclado a bank_accounts.balance,
+    por tenant (RLS FORCE => set_config app.tenant_id antes de cada UPDATE).
+    Idempotente: guard balance_after IS DISTINCT FROM."""
+    import asyncio, yaml, asyncpg
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    UPDATE_SQL = """
+    WITH ordered AS (
+      SELECT m.id, m.account_id, m.amount,
+             ROW_NUMBER() OVER (
+               PARTITION BY m.account_id
+               ORDER BY m.value_date ASC,
+                        COALESCE(m.posted_date, m.value_date) ASC,
+                        m.created_at ASC, m.id ASC) AS rn
+        FROM gestoria_banking.bank_movements m
+    ),
+    calc AS (
+      SELECT o.account_id, o.id,
+             ROUND(a.balance - COALESCE(
+               SUM(o.amount) OVER (
+                 PARTITION BY o.account_id ORDER BY o.rn DESC
+                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0), 2) AS bal_after
+        FROM ordered o
+        JOIN gestoria_banking.bank_accounts a ON a.id = o.account_id
+       WHERE a.balance IS NOT NULL
+    )
+    UPDATE gestoria_banking.bank_movements m
+       SET balance_after = c.bal_after, updated_at = now()
+      FROM calc c
+     WHERE m.id = c.id
+       AND m.balance_after IS DISTINCT FROM c.bal_after
+    """
+
+    def _read(p):
+        with open(p) as f: return f.read().strip()
+
+    def _inject_pw(url, pw):
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        dsn = _inject_pw(cfg["database"]["dsn"], _read(f"{CREDS}/gestoria_banking_app.password"))
+        tenants = set(cfg.get("tenants") or [])
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[balance-recompute] tenant discovery skipped: {e}", flush=True)
+        if not tenants:
+            tenants = {"skirmshop"}
+        total = 0
+        for t in sorted(tenants):
+            async with conn.transaction():
+                await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+                res = await conn.execute(UPDATE_SQL)  # "UPDATE <n>"
+                n = int(res.split()[-1]) if res.startswith("UPDATE") else 0
+                total += n
+                print(f"[balance-recompute] tenant={t} updated={n}", flush=True)
+        await conn.close()
+        print(f"[balance-recompute] tenants={sorted(tenants)} total_updated={total}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-banking-balance-recompute
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-balance-recompute
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "50 6 * * *"          # 06:50 UTC, tras daily-sync (06:40), antes de reauth-check (07:10)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-banking-balance-recompute
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: balance-recompute
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:psd2-always-on-20260630-delta@sha256:96e1bf6aa550d9b447e2e94492354b6f975cd9b1c85b569e4ddae24694164311
+            command: ["python", "/scripts/balance_recompute.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-banking-balance-recompute-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
