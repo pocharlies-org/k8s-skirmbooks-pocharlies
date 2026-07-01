@@ -26,7 +26,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:psd2-always-on-20260701-1758@sha256:ad38015dd3a5e74dfd2e8181bb4059a43dd306f934b211849e7f5bf089b455a5
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:psd2-sso-20260701-1844@sha256:09e56ed39213279ea200235bc01f84f977aac5ddaad3f0d9e5fe9b582308b94f
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -73,6 +73,18 @@ spec:
             # NODE_ENV=production (cookies Secure). Volver a "false" = legacy LAN sin login.
             - name: AUTH_ENABLED
               value: "true"
+            # SSO-trust (login Google/Keycloak de una sola pasada) — DESPLEGADO con la
+            # imagen psd2-sso-20260701-1844. Un request no autenticado que traiga el
+            # id_token del oauth2-proxy (Authorization: Bearer) se valida contra el JWKS
+            # de Keycloak (firma+issuer+exp) y mintea sesión, sin pedir contraseña. LAN y
+            # login por contraseña intactos (fail-closed sin la env). FOLLOW-UP: fijar
+            # SSO_OIDC_AUDIENCE (client_id del oauth2-proxy) tras ver un token real.
+            - name: SSO_TRUST_ENABLED
+              value: "true"
+            - name: SSO_OIDC_ISSUER
+              value: https://auth-next.e-dani.com/realms/edani
+            - name: SSO_JWKS_URL
+              value: http://keycloak.keycloak.svc.cluster.local/realms/edani/protocol/openid-connect/certs
             # SESSION_SECRET (HMAC de la cookie sb_tenant firmada + sesión __sb_session)
             # se inyecta vía envFrom: skirmbooks-ui-secrets — sembrar la clave
             # SESSION_SECRET (32+ bytes aleatorios) en Vault/ESO ANTES de AUTH_ENABLED=true.
