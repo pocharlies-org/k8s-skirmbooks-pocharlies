@@ -158,7 +158,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2109-delta@sha256:881985ce908bd34bbca048e4ae4dd000f7df2ff3e32c55f1ac2e5ed756452563
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2356-delta@sha256:345ec6549ddd233d773dea9e975efb5d79cb220727c959b1b9f9bc534c4552cf
             command: ["python", "/scripts/sweep.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
