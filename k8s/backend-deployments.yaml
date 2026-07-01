@@ -786,12 +786,16 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:fiscal-shared-valkey-20260701-delta@sha256:072e74705d37240f7ac9cbed73beaa6c8ace4698597712cf814364710e4c6e8b
         args:
         - synapse_adapter_fiscal_validator
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
           value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SHARED_VALKEY_SKIRMBOOKS_PASSWORD
+          valueFrom: { secretKeyRef: { name: skirmbooks-shared-valkey, key: password } }
+        - name: REDIS_URL
+          value: "redis://skirmbooks:$(SHARED_VALKEY_SKIRMBOOKS_PASSWORD)@shared-valkey-master.databases.svc.cluster.local:6379/0"
         - name: SYNAPSE_LEGACY_DRAIN_QUEUE
           value: "1"
         ports:
@@ -869,12 +873,16 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:fiscal-shared-valkey-20260701-delta@sha256:072e74705d37240f7ac9cbed73beaa6c8ace4698597712cf814364710e4c6e8b
         args:
         - synapse_adapter_fiscal_validator
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
           value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SHARED_VALKEY_SKIRMBOOKS_PASSWORD
+          valueFrom: { secretKeyRef: { name: skirmbooks-shared-valkey, key: password } }
+        - name: REDIS_URL
+          value: "redis://skirmbooks:$(SHARED_VALKEY_SKIRMBOOKS_PASSWORD)@shared-valkey-master.databases.svc.cluster.local:6379/0"
         - name: SYNAPSE_COMMAND_ACTIONS
           value: validate_classification,score_match,validate_modelo_casilla
         ports:
@@ -952,12 +960,16 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:fiscal-shared-valkey-20260701-delta@sha256:072e74705d37240f7ac9cbed73beaa6c8ace4698597712cf814364710e4c6e8b
         args:
         - synapse_adapter_fiscal_validator
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_FISCAL_VALIDATOR_CONFIG
           value: /etc/synapse/adapter-gestoria-fiscal-validator.yaml
+        - name: SHARED_VALKEY_SKIRMBOOKS_PASSWORD
+          valueFrom: { secretKeyRef: { name: skirmbooks-shared-valkey, key: password } }
+        - name: REDIS_URL
+          value: "redis://skirmbooks:$(SHARED_VALKEY_SKIRMBOOKS_PASSWORD)@shared-valkey-master.databases.svc.cluster.local:6379/0"
         - name: SYNAPSE_COMMAND_ACTIONS
           value: detect_anomaly,explain_decision,diagnose_sii_diff
         ports:
