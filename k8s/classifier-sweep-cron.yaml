@@ -132,7 +132,7 @@ metadata:
     app: skirmbooks-classifier-sweep
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  suspend: true                   # entregado SUSPENDIDO — activar manualmente para reprocesar backlog
+  suspend: false                   # entregado SUSPENDIDO — activar manualmente para reprocesar backlog
   schedule: "0 3 * * *"           # diario 03:00
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
