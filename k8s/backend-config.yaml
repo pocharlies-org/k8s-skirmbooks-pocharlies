@@ -75,8 +75,9 @@ data:
     \  timeout_s: 60.0\n  use_prompt_caching: true\n  use_redis_prefix_cache_fallback:\
     \ true\ncorpus:\n  path: /app/fiscal-corpus/built.txt\n\
     \  version: v1\ncircuit_breaker:\n  max_consecutive_failures: 5\n  half_open_after_seconds:\
-    \ 30\nthresholds:\n  auto_min: 0.95\n  suggest_min: 0.7\nredis:\n  url_env: REDIS_URL\n  host: skirmbooks-redis.skirmshop.svc.cluster.local\n\
-    \  port: 6379\n  db: 7\n  ttl_seconds: 86400\ntenants:\n- skirmshop\n"
+    \ 30\nthresholds:\n  auto_min: 0.95\n  suggest_min: 0.7\nredis:\n  host: shared-valkey-master.databases.svc.cluster.local\n\
+    \  port: 6379\n  db: 0\n  username: skirmbooks\n  password_env: SHARED_VALKEY_SKIRMBOOKS_PASSWORD\n\
+    \  ttl_seconds: 86400\ntenants:\n- skirmshop\n"
 ---
 apiVersion: v1
 kind: ConfigMap
