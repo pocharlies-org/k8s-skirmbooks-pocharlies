@@ -52,7 +52,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-classifier-20260701-2356-delta@sha256:345ec6549ddd233d773dea9e975efb5d79cb220727c959b1b9f9bc534c4552cf
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f2-classifier-20260702-1410-delta@sha256:abebd070b55454f7c989d88fae9126ff93cd0bf8611204ee0cd1fb8166261ede
         args:
         - synapse_adapter_banking
         env:

@@ -9,8 +9,10 @@
 # Este CronJob barre los `bank_movements` de GASTO (amount < 0) que aún NO tienen
 # categoría (`category IS NULL`) y en estado bookable real
 # (status IN ('imported','matched','unmatched','orphan') — se excluyen
-# 'transfer'/'personal'/'rejected', que no son gasto a clasificar), y publica
-# classify_movement para cada uno. Es:
+# 'transfer'/'personal'/'rejected', que no son gasto a clasificar). Se EXCLUYEN
+# además los ya marcados terminalmente no-contabilizables (category_method='excluded',
+# migración 0067) para no re-encolarlos cada noche. Publica classify_movement para
+# cada uno. Es:
 #   - broker-drift-immune (publica directo al broker correcto),
 #   - source-agnostic (cubre PSD2/CSV/cualquier importador),
 #   - idempotente (filtra los que ya tienen category -> no reclasifica).
@@ -80,6 +82,7 @@ data:
                 WHERE m.tenant_id=$1
                   AND m.category IS NULL
                   AND m.amount < 0
+                  AND (m.category_method IS NULL OR m.category_method <> 'excluded')
                   AND m.status IN ('imported','matched','unmatched','orphan')
                 ORDER BY m.value_date
                 """, t,
