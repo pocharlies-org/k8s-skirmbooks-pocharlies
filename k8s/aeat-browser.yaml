@@ -1,0 +1,194 @@
+# =============================================================================
+# Skirmbooks · aeat-browser adapter — Deployment + ConfigMap
+# -----------------------------------------------------------------------------
+# NEW gestoria adapter that DRIVES AEAT Sede (sede.agenciatributaria.gob.es) via
+# Playwright+Chromium using the FNMT cert, to file/validate Modelo 369 (OSS).
+# It runs from its OWN image (skirmbooks-aeat-browser) — NOT the shared
+# skirmbooks-backend image — because it needs Chromium + browser OS deps.
+#
+# DEPLOY: STANDALONE manifest (ConfigMap + Deployment). ArgoCD applies the whole
+#   k8s/ dir of k8s-skirmbooks-pocharlies as raw YAML, so this drops in as
+#   k8s/aeat-browser.yaml (no split into backend-deployments/config needed).
+#   It is HELD on branch feat/aeat-browser-validate-only until the prereqs exist
+#   (image built+pushed+@sha256-pinned, RMQ user + Vault cred). Merge to deploy/prod
+#   ONLY then — committing to deploy/prod early makes ArgoCD crash-loop (no image).
+#
+# TEST-BEFORE-PROD: validate_369 is the safe test against Hacienda. It clicks the
+#   real form's "Validar declaración" (a dry-run: AEAT validates the fichero and
+#   returns errors/avisos WITHOUT filing — only "Firmar y enviar" files). There is
+#   NO separate AEAT pre-production web form for the 369: prewww1 VOSS-M369 returns
+#   "Página no habilitada en exteriores/preproducción … Desactivada temporalmente".
+#   So this validate-only deploy IS the test environment; enable present (F4) only
+#   after validating real declarations here.
+#
+# =============================================================================
+# SAFETY GATES (READ BEFORE DEPLOY)
+# -----------------------------------------------------------------------------
+# 1. present_369 is DISABLED TWO WAYS (defense in depth):
+#      (a) env SYNAPSE_COMMAND_ACTIONS = "validate_369" ONLY. present_369 is NOT
+#          listed, so the adapter does not even BIND/consume the present command
+#          off RabbitMQ — a present_369 command silently has no consumer.
+#      (b) config `present_enabled: false` — even if the action were bound, the
+#          handler refuses to submit.
+#    Enabling real presentation (adding present_369 + present_enabled: true)
+#    REQUIRES a security audit (F4): irreversible external write to AEAT with a
+#    real cert, prompt-injection surface (a hostile page could try to drive the
+#    browser), and no undo. Do NOT flip either gate without F4 sign-off.
+#
+# 2. PREREQUISITES that MUST exist BEFORE this is applied (provision separately;
+#    this manifest does NOT create them):
+#      - (NO DB role needed — adapter runs DB-less, enable_pg=False, no Postgres.)
+#      - RMQ user: synapse_adapter_gestoria_aeat_browser (vhost /synapse, perms
+#                  on the adapter's queues/exchanges).
+#      - Credentials: files under Secret skirmbooks-backend-secrets consumed at
+#                  /etc/synapse/credentials (DB + RMQ passwords), same shape as
+#                  the other adapters.
+#      - Image built & pushed: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser
+#                  then pinned by @sha256 digest (see the image comment below).
+#
+# 3. FNMT cert: mounts Secret `sii-certificate` read-only at /etc/synapse/aeat
+#    (same secret/mount as skirmbooks-tax). cert_pkcs12_path=/etc/synapse/aeat/sii.p12,
+#    cert_passphrase_path=/etc/synapse/aeat/passphrase.
+#
+# 4. FUTURE HARDENING (follow-up, not in this manifest): a NetworkPolicy egress
+#    allowlist restricting this pod to AEAT hosts only
+#    (sede.agenciatributaria.gob.es, www1/www7.aeat.es, + DNS + DB/RMQ), as an
+#    anti-prompt-injection control. Egress to AEAT already works from ns
+#    skirmshop today; the allowlist is a containment measure once present_369
+#    is enabled.
+# =============================================================================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-aeat-browser-config
+  namespace: skirmshop
+data:
+  adapter-gestoria-aeat-browser.yaml: |
+    service: synapse-adapter-gestoria-aeat-browser
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9532
+    # DB-less: sin bloque `database` (BaseAdapterConfig.database es opcional).
+    # El adapter arranca con enable_pg=False; no crea pool ni necesita el rol
+    # DB gestoria_aeat_browser_app. Solo consume RabbitMQ.
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_aeat_browser@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    # FNMT cert (sii-certificate) mounted read-only at /etc/synapse/aeat.
+    # NOTE: these are TOP-LEVEL keys. AeatBrowserAdapterConfig declares them FLAT
+    # (no `aeat:` sub-model), and BaseAdapterConfig uses pydantic extra=ignore, so
+    # nesting them under a sub-key would be SILENTLY DROPPED (fall back to code
+    # defaults). Keep them at top level.
+    cert_pkcs12_path: /etc/synapse/aeat/sii.p12
+    cert_passphrase_path: /etc/synapse/aeat/passphrase
+    # SAFETY GATE (config side): real presentation of Modelo 369 is disabled.
+    # This is the second of two independent gates; the first is
+    # SYNAPSE_COMMAND_ACTIONS excluding present_369 (see the Deployment env).
+    # Flipping to true requires the F4 security audit.
+    present_enabled: false
+    tenants:
+    - skirmshop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-aeat-browser
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-aeat-browser
+    app.kubernetes.io/name: skirmbooks-aeat-browser
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: aeat-browser
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-aeat-browser
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-aeat-browser
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-aeat-browser
+        app.kubernetes.io/name: skirmbooks-aeat-browser
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: aeat-browser
+        # Placeholder tag. PIN BY DIGEST at deploy time, e.g.:
+        #   harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.0@sha256:<digest>
+        # (the co-located adapters are all pinned @sha256 in the deploy repo).
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.0
+        # ENTRYPOINT is ["python","-m"]; args selects the adapter module.
+        args:
+        - synapse_adapter_aeat_browser
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_AEAT_BROWSER_CONFIG
+          value: /etc/synapse/adapter-gestoria-aeat-browser.yaml
+        # SAFETY GATE (env side): ONLY validate_369 is consumed. present_369 is
+        # intentionally absent -> the present command has NO consumer and cannot
+        # execute. Do NOT add present_369 without the F4 security audit.
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: validate_369
+        ports:
+        - name: metrics
+          containerPort: 9532
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-aeat-browser.yaml
+          subPath: adapter-gestoria-aeat-browser.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        # FNMT cert del sii-app (mTLS AEAT + login Sede con certificado).
+        - name: aeat-cert
+          mountPath: /etc/synapse/aeat
+          readOnly: true
+        resources:
+          # Chromium is memory-hungry; give it headroom above the co-located
+          # adapters (which are 128Mi/768Mi text-only workers).
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-aeat-browser-config
+          items:
+          - key: adapter-gestoria-aeat-browser.yaml
+            path: adapter-gestoria-aeat-browser.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+      - name: aeat-cert
+        secret:
+          secretName: sii-certificate
+          defaultMode: 292
