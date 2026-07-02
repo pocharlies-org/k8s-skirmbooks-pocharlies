@@ -1,0 +1,124 @@
+# Backfill de inventario a COSTE REAL de compra (F3) — script one-shot in-process.
+#
+# El handler reporting.inventory.backfill_wac reconstruye el valor histórico de
+# inventario mes a mes uniendo cada movimiento de compra del stockhistory de Picqer
+# con la línea real de receipt/PO (por idproduct) → source='receipt_cost'.
+#
+# NO se ejecuta por RabbitMQ: el run dura ~1.8h (fetch stockhistory por producto) y
+# excede el consumer_timeout de RMQ (30min). Se corre como Job ONE-SHOT in-process que
+# reutiliza run_service (mismo wiring pool/creds/config del adapter reporting) pero llama
+# al handler directo y sale. Este ConfigMap versiona ese runner; el Job se lanza a mano.
+#
+# LANZAR (operacional, no GitOps — como el sweep manual del clasificador):
+#   kubectl -n skirmshop create -f - <<'EOF'
+#   apiVersion: batch/v1
+#   kind: Job
+#   metadata: { name: inv-backfill-<ts>, namespace: skirmshop, labels: { app: skirmbooks-inventory-backfill } }
+#   spec:
+#     backoffLimit: 0
+#     activeDeadlineSeconds: 9000
+#     ttlSecondsAfterFinished: 86400
+#     template:
+#       spec:
+#         restartPolicy: Never
+#         nodeSelector: { role: edge, kubernetes.io/arch: amd64 }
+#         tolerations: [{ key: role, operator: Equal, value: edge, effect: NoSchedule }]
+#         imagePullSecrets: [{ name: harbor-pull }]
+#         containers:
+#         - name: backfill
+#           image: harbor.e-dani.com/homelab/skirmbooks-backend:<misma imagen que reporting-inventory>
+#           command: ["python"]
+#           args: ["/scripts/backfill.py"]
+#           env:
+#           - { name: SYNAPSE_ADAPTER_GESTORIA_REPORTING_CONFIG, value: /etc/synapse/adapter-gestoria-reporting.yaml }
+#           - { name: BACKFILL_TENANT, value: skirmshop }
+#           - { name: BACKFILL_FROM, value: "2021-07" }   # desde el primer stockhistory
+#           - { name: BACKFILL_TO,   value: "2026-06" }   # hasta el último mes cerrado
+#           # - { name: BACKFILL_MAX_PRODUCTS, value: "50" }   # opcional, smoke test barato
+#           volumeMounts:
+#           - { name: config, mountPath: /etc/synapse/adapter-gestoria-reporting.yaml, subPath: adapter-gestoria-reporting.yaml, readOnly: true }
+#           - { name: credentials, mountPath: /etc/synapse/credentials, readOnly: true }
+#           - { name: script, mountPath: /scripts, readOnly: true }
+#           resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 1Gi } }
+#         volumes:
+#         - { name: config, configMap: { name: skirmbooks-reporting-config, items: [{ key: adapter-gestoria-reporting.yaml, path: adapter-gestoria-reporting.yaml }] } }
+#         - { name: credentials, secret: { secretName: skirmbooks-backend-secrets, defaultMode: 292 } }
+#         - { name: script, configMap: { name: skirmbooks-inventory-backfill-script } }
+#   EOF
+#
+# Idempotente: cada month-end se upserta por su clave natural; re-lanzar el mismo rango
+# recomputa y sobrescribe en sitio (ON CONFLICT DO UPDATE, incluido source).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-inventory-backfill-script
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-inventory-backfill
+    e-dani.com/component: skirmbooks-backend
+data:
+  backfill.py: |
+    """One-shot in-process runner del backfill de inventario a COSTE REAL (F3).
+
+    Reutiliza run_service (mismo wiring de pool/creds/config que el adapter reporting)
+    pero, en vez de arrancar el consumidor RMQ, llama al handler inventory_backfill_wac
+    IN-PROCESS y sale. Motivo: el backfill dura ~1.8h (fetch stockhistory por producto)
+    y excede el consumer_timeout de RabbitMQ (30min) -> no puede correr por la cola.
+
+    Params por env: BACKFILL_FROM / BACKFILL_TO ('YYYY-MM'), BACKFILL_TENANT
+    (default skirmshop), BACKFILL_MAX_PRODUCTS (opcional, para smoke).
+    """
+    from __future__ import annotations
+    import os
+
+    from synapse_shared.bootstrap import ServiceCtx, run_service, sync_main
+    from synapse_adapter_reporting import handlers as _h  # noqa: F401  (registra handlers)
+    from synapse_adapter_reporting.config import ReportingAdapterConfig
+    from synapse_adapter_reporting.handlers import ReportingCtx, inventory_backfill_wac
+    from synapse_adapter_reporting.contracts import InventoryBackfillWacInput
+
+
+    async def _run_backfill(ctx: ServiceCtx) -> None:
+        tenant = os.environ.get("BACKFILL_TENANT", "skirmshop")
+        frm = os.environ["BACKFILL_FROM"]
+        to = os.environ["BACKFILL_TO"]
+        maxp = os.environ.get("BACKFILL_MAX_PRODUCTS")
+        inp = InventoryBackfillWacInput(
+            from_month=frm, to_month=to,
+            max_products=int(maxp) if maxp else None,
+        )
+        rctx = ReportingCtx(
+            config=ctx.config, pool=ctx.pool,
+            tenants=set(ctx.config.tenants), secrets=dict(ctx.secrets or {}),
+        )
+        print(f"[backfill] START tenant={tenant} {frm}..{to} max_products={inp.max_products}", flush=True)
+        result = await inventory_backfill_wac(rctx, tenant, inp)
+        print(f"[backfill] DONE {result}", flush=True)
+        stop = getattr(ctx, "stop", None)
+        if stop is not None:
+            try:
+                stop.set()
+            except Exception:
+                pass
+
+
+    def main() -> None:
+        sync_main(run_service(
+            service_name="synapse-adapter-gestoria-reporting",
+            config_model=ReportingAdapterConfig,
+            env_var="SYNAPSE_ADAPTER_GESTORIA_REPORTING_CONFIG",
+            default_config_path="/etc/synapse/adapter-gestoria-reporting.yaml",
+            pg_user="gestoria_reporting_app",
+            pg_credential="gestoria_reporting_app.password",
+            rmq_user="synapse_adapter_gestoria_reporting",
+            rmq_credential="synapse_adapter_gestoria_reporting.rmq.password",
+            extra_credentials={
+                "picqer.api_key": "picqer.api_key",
+                "picqer.subdomain": "picqer.subdomain",
+            },
+            run=_run_backfill,
+        ))
+
+
+    if __name__ == "__main__":
+        main()
