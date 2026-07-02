@@ -1,0 +1,92 @@
+# Picqer inventory-valuation adapter worker (NEW isolated resource).
+#
+# Clone of skirmbooks-reporting-cashflow EXCEPT: name/labels/selector,
+# image (inventory-valuation delta), SYNAPSE_COMMAND_ACTIONS, memory limit.
+# Reuses skirmbooks-reporting-config + skirmbooks-backend-secrets creds mount
+# (which lands picqer.api_key / picqer.subdomain files under /etc/synapse/credentials).
+#
+# replicas is intentionally OMITTED: KEDA (keda-skirmbooks-reporting-inventory)
+# owns /spec/replicas. ArgoCD SSA does not ignore /spec/replicas, so an explicit
+# replicas here would fight KEDA.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-reporting-inventory
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-reporting-inventory
+    app.kubernetes.io/name: skirmbooks-reporting-inventory
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: reporting
+    synapse.io/worker-profile: inventory
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-reporting-inventory
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-reporting-inventory
+        app.kubernetes.io/name: skirmbooks-reporting-inventory
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        role: edge
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: reporting
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-inventory-20260702-0831-delta@sha256:0a2d45b032d54bbc7b08d690fb0ee4b38ea2a5c9cc04319b94d554b0f9613325
+        args:
+        - synapse_adapter_reporting
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_REPORTING_CONFIG
+          value: /etc/synapse/adapter-gestoria-reporting.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: inventory.value_snapshot,inventory.backfill_wac
+        ports:
+        - name: metrics
+          containerPort: 9529
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-reporting.yaml
+          subPath: adapter-gestoria-reporting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 768Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-reporting-config
+          items:
+          - key: adapter-gestoria-reporting.yaml
+            path: adapter-gestoria-reporting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292

@@ -1,0 +1,34 @@
+# KEDA autoscaler for the Picqer inventory-valuation adapter worker (NEW).
+#
+# Clone of keda-skirmbooks-reporting-cashflow EXCEPT: name/labels, target,
+# queueName regex, minReplicaCount, maxReplicaCount.
+#
+# minReplicaCount: 1 keeps one small pod warm so the durable inventory queue is
+# consumed without a scale-from-zero cold start. maxReplicaCount capped at 3.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-skirmbooks-reporting-inventory
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: reporting
+    synapse.io/worker-profile: inventory
+spec:
+  scaleTargetRef:
+    name: skirmbooks-reporting-inventory
+  pollingInterval: 30
+  cooldownPeriod: 21600
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+  - type: rabbitmq
+    metadata:
+      protocol: http
+      mode: QueueLength
+      value: '1'
+      queueName: ^adapter\.reporting\.inventory\.(value_snapshot|backfill_wac)$
+      useRegex: "true"
+      operation: sum
+    authenticationRef:
+      name: skirmbooks-rabbitmq-http

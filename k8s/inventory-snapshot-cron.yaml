@@ -1,0 +1,147 @@
+# Disparador durable del SNAPSHOT mensual de valoración de inventario Picqer →
+# inventory_snapshots (valoración WAC del stock a cierre del mes anterior).
+#
+# Contexto: skirmbooks es command-driven (sin engine de workflows desplegado).
+# El handler `reporting.inventory.value_snapshot` LEE Picqer (pagina /products con
+# picqer.api_key/subdomain) y ESCRIBE inventory_snapshots. NO genera asientos
+# contables → es un job de solo lectura Picqer + escritura del espejo de inventario,
+# por eso este CronJob NO va suspendido (a diferencia de los crons que asientan).
+#
+# Este CronJob publica mensualmente, al broker synapse-rmq (exchange `commands`),
+# el comando del inventario para el tenant skirmshop (SINGLE-TENANT: el inventario
+# NO se fan-out a todos los tenants):
+#   routing_key = reporting.skirmshop.inventory.value_snapshot
+#   plugin      = reporting.inventory.value_snapshot
+#   params      = {}   (el handler usa por defecto el cierre del mes anterior)
+# Lo consume el deployment skirmbooks-reporting-inventory
+# (SYNAPSE_COMMAND_ACTIONS incluye inventory.value_snapshot + creds Picqer montadas).
+#
+# Idempotente por diseño: el UPSERT del handler dedupea por (tenant_id, snapshot_date),
+# así que re-ejecutar el mismo mes solo refresca la valoración. Reusa la imagen +
+# config + credenciales del adapter reporting (aditivo, no toca los Deployments en
+# marcha refresh/cashflow/search).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-inventory-snapshot-script
+  namespace: skirmshop
+data:
+  publish.py: |
+    """Publica reporting.skirmshop.inventory.value_snapshot {} (cierre mes anterior por defecto)."""
+    import asyncio, json, os, uuid, datetime
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-reporting.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        # amqp://user@host/... -> amqp://user:pw@host/...   (idem postgresql://)
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_reporting_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_reporting.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+
+        # Inventario = SINGLE-TENANT skirmshop. NO se hace discovery ni fan-out a
+        # otros tenants (el DSN se resuelve para validar credenciales/red).
+        tenant = "skirmshop"
+        conn = await asyncpg.connect(dsn)
+        await conn.close()
+
+        print(f"[inventory-snapshot] tenant={tenant} params={{}} (handler -> previous-month-end)", flush=True)
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        msg_id = uuid.uuid4().hex
+        body = json.dumps({
+            "workflow_instance_id": str(uuid.uuid4()),
+            "step_id": msg_id,
+            "plugin": "reporting.inventory.value_snapshot",
+            "params": {},
+            "attempt": 1,
+            "fire_and_forget": True,
+        }).encode()
+        await ex.publish(
+            aio_pika.Message(
+                body=body, content_type="application/json",
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                message_id=msg_id,
+                headers={"tenant_id": tenant, "source": "inventory-snapshot-cron", "fire_and_forget": "true"},
+            ),
+            routing_key=f"reporting.{tenant}.inventory.value_snapshot",
+        )
+        await rmq.close()
+        print("[inventory-snapshot] publicado value_snapshot=1", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-inventory-snapshot
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-inventory-snapshot
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  # Día 3 de cada mes a las 04:00 UTC: el stock del mes anterior ya está estable
+  # (recepciones/ajustes de cierre asentados en Picqer).
+  schedule: "0 4 3 * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-inventory-snapshot
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: publish
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-inventory-20260702-0831-delta@sha256:0a2d45b032d54bbc7b08d690fb0ee4b38ea2a5c9cc04319b94d554b0f9613325
+            command: ["python", "/scripts/publish.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-reporting.yaml
+              subPath: adapter-gestoria-reporting.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-inventory-snapshot-script
+          - name: config
+            configMap:
+              name: skirmbooks-reporting-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
