@@ -52,14 +52,17 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f4-classifier-20260702-1500-delta@sha256:b9f8180e60e7e78e87b7a1a7e274f6c7d20e5e08be701b2710bffaab2d97bc3a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f4b-classifier-20260703-0330-delta@sha256:c5607f7461af8d88ae7f81f02e6a0091683a1e8494a2c467a684bf89a1b92856
         args:
         - synapse_adapter_banking
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
+        # classify_personal (F4b): clasificador del perfil PERSONAL. Dormante hasta que se
+        # dé de alta el tenant `personal` (añadirlo a config `tenants` + su sweep); gateado
+        # por profile='personal' en el handler, así que es inerte para skirmshop (empresa).
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: classify_movement,set_category
+          value: classify_movement,set_category,classify_personal
         ports:
         - name: metrics
           containerPort: 9522

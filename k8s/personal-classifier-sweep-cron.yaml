@@ -1,0 +1,172 @@
+# Sweep del CLASIFICADOR PERSONAL (F4b) — barre los bank_movements SIN categoría de los
+# tenants con profile='personal' (AMBOS signos: el clasificador personal cubre ingreso y
+# gasto) y publica banking.<tenant>.classify_personal.
+#
+# ENTREGADO SUSPENDIDO (suspend: true): el tenant `personal` aún no tiene cuentas ni
+# movimientos, y NO está en la config `tenants` del deployment banking-classifier (no se
+# bindea banking.personal.*). RUNBOOK DE ACTIVACIÓN (al dar de alta el tenant personal con
+# datos):
+#   1. Importar sus bank_accounts + bank_movements.
+#   2. Añadir `personal` a la config `tenants` de skirmbooks-banking-config (para que el
+#      adapter bindee banking.personal.classify_personal). El handler ya está desplegado
+#      (imagen gastos-f4b…, SYNAPSE_COMMAND_ACTIONS incluye classify_personal; KEDA regex ya
+#      cubre classify_personal).
+#   3. `kubectl -n skirmshop patch cronjob skirmbooks-personal-classifier-sweep -p '{"spec":{"suspend":false}}'`
+#      o poner suspend:false aquí y sincronizar.
+#   4. Validar la 1ª corrida en vivo (observar): los ingresos → ingresos_nomina/otros; los
+#      gastos → categorías personales; el LLM refina 'otros' ON-PREM (allow_cloud_fallback=False).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-personal-classifier-sweep-script
+  namespace: skirmshop
+data:
+  sweep.py: |
+    """Barre bank_movements sin categoria de tenants PERSONAL (ambos signos) y publica
+    banking.classify_personal. Espejo de classifier-sweep-cron pero para perfil personal."""
+    import asyncio, json, os, uuid, sys
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+
+        conn = await asyncpg.connect(dsn)
+        # SOLO tenants con profile='personal' (el handler igualmente gatea por profile).
+        try:
+            rows = await conn.fetch(
+                "SELECT tenant_id FROM gestoria_identity.tenants WHERE profile='personal'")
+            tenants = sorted({r["tenant_id"] for r in rows})
+        except Exception as e:
+            print(f"[personal-sweep] tenant discovery failed: {e}", flush=True)
+            tenants = []
+        if not tenants:
+            print("[personal-sweep] sin tenants personales -> nada que hacer", flush=True)
+            await conn.close()
+            return
+
+        to_classify = {}  # tenant -> [movement_id]  (AMBOS signos: ingreso y gasto)
+        for t in tenants:
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            rows = await conn.fetch(
+                """
+                SELECT m.id FROM gestoria_banking.bank_movements m
+                WHERE m.tenant_id=$1
+                  AND m.category IS NULL
+                  AND m.status IN ('imported','matched','unmatched','orphan')
+                ORDER BY m.value_date
+                """, t,
+            )
+            to_classify[t] = [str(r["id"]) for r in rows]
+        await conn.close()
+
+        total = sum(len(v) for v in to_classify.values())
+        print(f"[personal-sweep] tenants={tenants} pendientes={ {t: len(v) for t,v in to_classify.items()} } total={total}", flush=True)
+        if total == 0:
+            return
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t, ids in to_classify.items():
+            for mid in ids:
+                msg_id = uuid.uuid4().hex
+                body = json.dumps({
+                    "workflow_instance_id": str(uuid.uuid4()),
+                    "step_id": msg_id,
+                    "plugin": "banking.classify_personal",
+                    "params": {"movement_id": mid},
+                    "attempt": 1,
+                    "fire_and_forget": True,
+                }).encode()
+                await ex.publish(
+                    aio_pika.Message(
+                        body=body, content_type="application/json",
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                        message_id=msg_id,
+                        headers={"tenant_id": t, "source": "personal-classifier-sweep", "fire_and_forget": "true"},
+                    ),
+                    routing_key=f"banking.{t}.classify_personal",
+                )
+                published += 1
+        await rmq.close()
+        print(f"[personal-sweep] publicados classify_personal={published}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-personal-classifier-sweep
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-personal-classifier-sweep
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  suspend: true                    # SUSPENDIDO — activar al dar de alta el tenant personal (ver runbook arriba)
+  schedule: "30 3 * * *"          # diario 03:30 (tras el sweep de gasto de las 03:00)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-personal-classifier-sweep
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: sweep
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f4b-classifier-20260703-0330-delta@sha256:c5607f7461af8d88ae7f81f02e6a0091683a1e8494a2c467a684bf89a1b92856
+            command: ["python", "/scripts/sweep.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-personal-classifier-sweep-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
