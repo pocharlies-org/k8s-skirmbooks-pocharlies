@@ -46,7 +46,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f3-reporting-20260702-1620-delta@sha256:13aafbc1e6b0ec94013c42a19f97ccae85a220e67a5c4ef7592e284a4a952540
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f3-reporting-20260703-0110-delta@sha256:1f86c65f5ea0ee785c78bc4f4739c37195362a30be46c77f737b916c8d90d733
         args:
         - synapse_adapter_reporting
         env:
