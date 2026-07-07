@@ -130,10 +130,10 @@ spec:
       - name: harbor-pull
       containers:
       - name: aeat-browser
-        # Pinned by digest. v0.1.1 (2026-07-07): + fix del clasificador voss369
+        # Pinned by digest. v0.1.2 (2026-07-07): + idempotency_strategy=external (DB-less) + fix clasificador
         # (sentinel de exito AEAT '00000/No existen errores'). noble/Python-3.12
         # Playwright base. Rebuild + re-pin on changes.
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.1@sha256:9891d8bdcab4d2a42519817520a7cf598ac8d8ed13eaae8c4faf3118e4409d3e
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.2@sha256:36a82d8a14187cb14fb15fbe3b8aae7b4138206969a6d6f5a3e9d7f162c753a9
         # ENTRYPOINT is ["python","-m"]; args selects the adapter module.
         args:
         - synapse_adapter_aeat_browser
