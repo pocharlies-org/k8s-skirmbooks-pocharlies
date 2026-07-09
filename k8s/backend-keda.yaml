@@ -611,7 +611,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.payroll\.(payslip\.draft|payslip\.approve|payslip\.pay|irpf_retention\.record)$
+      queueName: ^adapter\.payroll\.(payslip\.draft|payslip\.approve|payslip\.pay|payslip\.import|irpf_retention\.record)$
       useRegex: 'true'
       operation: sum
     authenticationRef:

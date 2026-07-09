@@ -2973,7 +2973,7 @@ spec:
         - name: SYNAPSE_ADAPTER_GESTORIA_PAYROLL_CONFIG
           value: /etc/synapse/adapter-gestoria-payroll.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: payslip.draft,payslip.approve,payslip.pay,irpf_retention.record
+          value: payslip.draft,payslip.approve,payslip.pay,payslip.import,irpf_retention.record
         ports:
         - name: metrics
           containerPort: 9527
