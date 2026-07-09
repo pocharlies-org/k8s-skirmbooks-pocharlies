@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:concil-origen-20260708@sha256:a1acda402f9dc82d2913c6f72df5a9d747bb49309a8a85e4166db085b6159244
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:card-settlement-rollup-20260709@sha256:cd489e1ee9c80750172b0c5f023817b2931d9ebc9744be00c5c19d922d909f23
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
