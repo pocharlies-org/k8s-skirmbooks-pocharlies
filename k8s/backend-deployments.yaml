@@ -23,10 +23,29 @@ spec:
       labels:
         app: skirmbooks-accounting
         app.kubernetes.io/name: skirmbooks-accounting
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -106,10 +125,29 @@ spec:
       labels:
         app: skirmbooks-accounting-entry
         app.kubernetes.io/name: skirmbooks-accounting-entry
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -189,10 +227,29 @@ spec:
       labels:
         app: skirmbooks-accounting-derived
         app.kubernetes.io/name: skirmbooks-accounting-derived
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -272,10 +329,29 @@ spec:
       labels:
         app: skirmbooks-accounting-period
         app.kubernetes.io/name: skirmbooks-accounting-period
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -355,10 +431,29 @@ spec:
       labels:
         app: skirmbooks-accounting-maintenance
         app.kubernetes.io/name: skirmbooks-accounting-maintenance
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -439,10 +534,29 @@ spec:
       labels:
         app: skirmbooks-banking
         app.kubernetes.io/name: skirmbooks-banking
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -522,10 +636,29 @@ spec:
       labels:
         app: skirmbooks-banking-psd2
         app.kubernetes.io/name: skirmbooks-banking-psd2
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -605,10 +738,29 @@ spec:
       labels:
         app: skirmbooks-banking-imports
         app.kubernetes.io/name: skirmbooks-banking-imports
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -688,10 +840,29 @@ spec:
       labels:
         app: skirmbooks-banking-reconcile
         app.kubernetes.io/name: skirmbooks-banking-reconcile
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -772,10 +943,29 @@ spec:
       labels:
         app: skirmbooks-fiscal-validator
         app.kubernetes.io/name: skirmbooks-fiscal-validator
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -857,10 +1047,29 @@ spec:
       labels:
         app: skirmbooks-fiscal-validator-validation
         app.kubernetes.io/name: skirmbooks-fiscal-validator-validation
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -942,10 +1151,29 @@ spec:
       labels:
         app: skirmbooks-fiscal-validator-analysis
         app.kubernetes.io/name: skirmbooks-fiscal-validator-analysis
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1028,10 +1256,29 @@ spec:
       labels:
         app: skirmbooks-identity
         app.kubernetes.io/name: skirmbooks-identity
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1118,10 +1365,29 @@ spec:
       labels:
         app: skirmbooks-identity-core
         app.kubernetes.io/name: skirmbooks-identity-core
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1201,10 +1467,29 @@ spec:
       labels:
         app: skirmbooks-identity-certs
         app.kubernetes.io/name: skirmbooks-identity-certs
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1291,10 +1576,29 @@ spec:
       labels:
         app: skirmbooks-identity-privacy
         app.kubernetes.io/name: skirmbooks-identity-privacy
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1375,10 +1679,29 @@ spec:
       labels:
         app: skirmbooks-invoicing
         app.kubernetes.io/name: skirmbooks-invoicing
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1478,10 +1801,29 @@ spec:
       labels:
         app: skirmbooks-invoicing-fast
         app.kubernetes.io/name: skirmbooks-invoicing-fast
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1581,10 +1923,29 @@ spec:
       labels:
         app: skirmbooks-invoicing-ocr
         app.kubernetes.io/name: skirmbooks-invoicing-ocr
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1695,10 +2056,29 @@ spec:
       labels:
         app: skirmbooks-invoicing-classify
         app.kubernetes.io/name: skirmbooks-invoicing-classify
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1798,10 +2178,29 @@ spec:
       labels:
         app: skirmbooks-invoicing-posting
         app.kubernetes.io/name: skirmbooks-invoicing-posting
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -1901,10 +2300,29 @@ spec:
       labels:
         app: skirmbooks-invoicing-issued
         app.kubernetes.io/name: skirmbooks-invoicing-issued
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2005,10 +2423,29 @@ spec:
       labels:
         app: skirmbooks-notifications
         app.kubernetes.io/name: skirmbooks-notifications
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2088,10 +2525,29 @@ spec:
       labels:
         app: skirmbooks-notifications-alerts
         app.kubernetes.io/name: skirmbooks-notifications-alerts
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2171,10 +2627,29 @@ spec:
       labels:
         app: skirmbooks-notifications-deh
         app.kubernetes.io/name: skirmbooks-notifications-deh
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2255,10 +2730,29 @@ spec:
       labels:
         app: skirmbooks-payroll
         app.kubernetes.io/name: skirmbooks-payroll
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2338,10 +2832,29 @@ spec:
       labels:
         app: skirmbooks-payroll-hr
         app.kubernetes.io/name: skirmbooks-payroll-hr
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2421,10 +2934,29 @@ spec:
       labels:
         app: skirmbooks-payroll-payslip
         app.kubernetes.io/name: skirmbooks-payroll-payslip
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2504,10 +3036,29 @@ spec:
       labels:
         app: skirmbooks-payroll-tgss
         app.kubernetes.io/name: skirmbooks-payroll-tgss
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2588,10 +3139,29 @@ spec:
       labels:
         app: skirmbooks-reporting
         app.kubernetes.io/name: skirmbooks-reporting
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2673,10 +3243,29 @@ spec:
       labels:
         app: skirmbooks-reporting-refresh
         app.kubernetes.io/name: skirmbooks-reporting-refresh
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2756,10 +3345,29 @@ spec:
       labels:
         app: skirmbooks-reporting-cashflow
         app.kubernetes.io/name: skirmbooks-reporting-cashflow
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2839,10 +3447,29 @@ spec:
       labels:
         app: skirmbooks-reporting-search
         app.kubernetes.io/name: skirmbooks-reporting-search
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -2936,10 +3563,29 @@ spec:
       labels:
         app: skirmbooks-shopify-sii-bridge
         app.kubernetes.io/name: skirmbooks-shopify-sii-bridge
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3019,10 +3665,29 @@ spec:
       labels:
         app: skirmbooks-shopify-sii-bridge-request
         app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-request
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3102,10 +3767,29 @@ spec:
       labels:
         app: skirmbooks-shopify-sii-bridge-poll
         app.kubernetes.io/name: skirmbooks-shopify-sii-bridge-poll
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3186,10 +3870,29 @@ spec:
       labels:
         app: skirmbooks-sii-inbound
         app.kubernetes.io/name: skirmbooks-sii-inbound
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3269,10 +3972,29 @@ spec:
       labels:
         app: skirmbooks-sii-inbound-push
         app.kubernetes.io/name: skirmbooks-sii-inbound-push
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3352,10 +4074,29 @@ spec:
       labels:
         app: skirmbooks-sii-inbound-assets
         app.kubernetes.io/name: skirmbooks-sii-inbound-assets
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3435,10 +4176,29 @@ spec:
       labels:
         app: skirmbooks-sii-inbound-reconcile
         app.kubernetes.io/name: skirmbooks-sii-inbound-reconcile
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3531,10 +4291,29 @@ spec:
       labels:
         app: skirmbooks-tax
         app.kubernetes.io/name: skirmbooks-tax
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3614,10 +4393,29 @@ spec:
       labels:
         app: skirmbooks-tax-modelo
         app.kubernetes.io/name: skirmbooks-tax-modelo
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3705,10 +4503,29 @@ spec:
       labels:
         app: skirmbooks-tax-sii
         app.kubernetes.io/name: skirmbooks-tax-sii
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3788,10 +4605,29 @@ spec:
       labels:
         app: skirmbooks-tax-calendar
         app.kubernetes.io/name: skirmbooks-tax-calendar
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal
@@ -3871,10 +4707,29 @@ spec:
       labels:
         app: skirmbooks-tax-aeat
         app.kubernetes.io/name: skirmbooks-tax-aeat
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
       - key: role
         operator: Equal

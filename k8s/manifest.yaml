@@ -12,12 +12,31 @@ spec:
     metadata:
       labels:
         app: skirmbooks-ui
+        app.kubernetes.io/part-of: skirmbooks
     spec:
       enableServiceLinks: false
       imagePullSecrets:
         - name: harbor-pull
-      nodeSelector:
-        kubernetes.io/arch: amd64
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
       tolerations:
         - key: role
           operator: Equal
