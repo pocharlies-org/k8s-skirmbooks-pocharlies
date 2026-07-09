@@ -1,0 +1,145 @@
+# Disparador durable del import de PayPal (skirmbooks).
+#
+# Mismo patrón que banking-klarna-cron / reconcile-sweep: skirmbooks es
+# command-driven (sin engine de workflows), así que un CronJob publica el comando
+# `banking.<tenant>.import_paypal` directo al broker del adapter, con
+# publisher_confirms + delivery PERSISTENT + header tenant_id. El handler
+# (idempotente) corre en el deployment skirmbooks-banking-imports. days_lookback=7
+# da solape para txns tardías; la idempotencia (UNIQUE por external id / ref_hash)
+# evita duplicados.
+#
+# NOTA: antes NO existía cron de PayPal — el import corría ad-hoc. Este cron cierra
+# ese hueco para que las COMPRAS salientes (nuevo mapper 'purchase' -> bank_movements
+# de gasto) se materialicen a diario y el conciliador de facturas de compra las case.
+# Requiere paypal.client_id/client_secret en el secret (ya sembrados: el import ya
+# corría manualmente). suspend:false porque las credenciales existen.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-paypal-sync-script
+  namespace: skirmshop
+data:
+  paypal-sync.py: |
+    """Publica banking.<tenant>.import_paypal para cada tenant (ventana days_lookback)."""
+    import asyncio, json, uuid
+    import yaml, asyncpg, aio_pika
+
+    CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def main():
+        cfg = yaml.safe_load(open(CFG))
+        db_pw = _read(f"{CREDS}/gestoria_banking_app.password")
+        rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_banking.rmq.password")
+        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
+        amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = set(cfg.get("tenants") or [])
+
+        conn = await asyncpg.connect(dsn)
+        try:
+            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
+                tenants.add(r["tenant_id"])
+        except Exception as e:
+            print(f"[paypal-sync] tenant discovery skipped: {e}", flush=True)
+        finally:
+            await conn.close()
+        if not tenants:
+            tenants = {"skirmshop"}
+
+        rmq = await aio_pika.connect_robust(amqp_url)
+        ch = await rmq.channel(publisher_confirms=True)
+        ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+        published = 0
+        for t in sorted(tenants):
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": "banking.import_paypal",
+                "params": {"days_lookback": 7},
+                "attempt": 1,
+                "fire_and_forget": True,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "paypal-cron", "fire_and_forget": "true"},
+                ),
+                routing_key=f"banking.{t}.import_paypal",
+            )
+            published += 1
+        await rmq.close()
+        print(f"[paypal-sync] publicados import_paypal={published} tenants={sorted(tenants)}", flush=True)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-banking-paypal-sync
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-paypal-sync
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "23 3 * * *"          # diario 03:23 (off-minute, tras klarna 03:17)
+  suspend: false
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-banking-paypal-sync
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: paypal-sync
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:mp-paypal-20260616-2-delta@sha256:f18ffed7919414aa796515db8065299fed3034a3f0da4820f45a2533f1e2a205
+            command: ["python", "/scripts/paypal-sync.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-banking-paypal-sync-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

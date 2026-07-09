@@ -770,7 +770,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:klarna-refmatch-20260709b@sha256:55ed0d5acaf65bdad79b26f270ec74edee57f8dae64dddb086312234426cb452
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:paypal-expenses-20260709@sha256:e66aa6a2f04daf3da772d55e0ae50970e3dc47e9043dfa6df577b6b41255d18a
         args:
         - synapse_adapter_banking
         env:
@@ -2762,7 +2762,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:talenom-payroll-20260709@sha256:88fa19bfb32723e2bac1df4d3dd64fe38790bca836410790957e08918d933ea3
         args:
         - synapse_adapter_payroll
         env:
@@ -2864,7 +2864,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:talenom-payroll-20260709@sha256:88fa19bfb32723e2bac1df4d3dd64fe38790bca836410790957e08918d933ea3
         args:
         - synapse_adapter_payroll
         env:
@@ -2966,7 +2966,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:talenom-payroll-20260709@sha256:88fa19bfb32723e2bac1df4d3dd64fe38790bca836410790957e08918d933ea3
         args:
         - synapse_adapter_payroll
         env:
@@ -3068,7 +3068,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:talenom-payroll-20260709@sha256:88fa19bfb32723e2bac1df4d3dd64fe38790bca836410790957e08918d933ea3
         args:
         - synapse_adapter_payroll
         env:
