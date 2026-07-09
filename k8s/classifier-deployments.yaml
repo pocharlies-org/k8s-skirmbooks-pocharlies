@@ -41,7 +41,6 @@ spec:
     spec:
       enableServiceLinks: false
       nodeSelector:
-        role: edge
         kubernetes.io/arch: amd64
       tolerations:
       - key: role
@@ -87,7 +86,8 @@ spec:
             - -c
             - grep -q synapse_adapter /proc/1/cmdline
           initialDelaySeconds: 20
-          periodSeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
       volumes:
       - name: config
         configMap:
@@ -127,7 +127,6 @@ spec:
     spec:
       enableServiceLinks: false
       nodeSelector:
-        role: edge
         kubernetes.io/arch: amd64
       tolerations:
       - key: role
@@ -172,7 +171,8 @@ spec:
             - -c
             - grep -q synapse_adapter /proc/1/cmdline
           initialDelaySeconds: 20
-          periodSeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
       volumes:
       - name: config
         configMap:

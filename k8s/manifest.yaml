@@ -17,7 +17,6 @@ spec:
       imagePullSecrets:
         - name: harbor-pull
       nodeSelector:
-        role: edge
         kubernetes.io/arch: amd64
       tolerations:
         - key: role
