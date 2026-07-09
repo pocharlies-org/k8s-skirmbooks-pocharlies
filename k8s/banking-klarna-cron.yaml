@@ -94,7 +94,7 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
 spec:
   schedule: "17 3 * * *"          # diario 03:17 (off-minute)
-  suspend: true                   # ACTIVAR tras sembrar klarna.api_user/password en Vault
+  suspend: false                   # ACTIVAR tras sembrar klarna.api_user/password en Vault
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 3
