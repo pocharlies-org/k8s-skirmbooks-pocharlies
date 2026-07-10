@@ -4425,7 +4425,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:faseb-no369-20260709-delta@sha256:bd8e1336fbf2f19e898985f2901f7b7235e518698f9da95c38b8bf6d1a399572
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:fix111-20260710-delta@sha256:395d5579437be22d62e8fe51fdf28fdb6e0ef2fb4ae66384d6edf2866914501b
         args:
         - synapse_adapter_tax
         env:
