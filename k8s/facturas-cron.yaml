@@ -51,7 +51,11 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-monthly-20260627-delta@sha256:466cdf28ab42788fc507d96dcd7c4e983c12860dc133e1e5ccdde1883932c315
+            # 2026-07-10: bump 0627→0630 (commit 81992c4) — el 0627 no tiene has_booking→RESOLVE
+            # ni la exclusión journal_lines en PENDING_GASTOS_SQL, por lo que los gastos ya
+            # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
+            # Imagen ya en prod (skirmbooks-accounting-derived).
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:psd2-always-on-20260630-delta@sha256:96e1bf6aa550d9b447e2e94492354b6f975cd9b1c85b569e4ddae24694164311
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
