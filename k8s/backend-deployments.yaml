@@ -1955,7 +1955,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoicing-candidate-20260628-delta@sha256:088be3a3489c83beaeb83b4e902cddc76163c1ecb6bbc9beadf772487f3b021c
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoice-reconcile-terminal-20260710@sha256:82623a79a4482e4d687179dc3fe4b9e35c9cc78a0b956dc86628656d8b708a35
         args:
         - synapse_adapter_invoicing
         env:
