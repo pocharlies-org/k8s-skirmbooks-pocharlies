@@ -21,9 +21,16 @@ data:
     CFG = "/etc/synapse/adapter-gestoria-banking.yaml"
     CREDS = "/etc/synapse/credentials"
 
-    # decode del ref con padding base64 -> texto '<seq(12)>   <saldo_centimos_con_signo>'
-    _DEC = ("convert_from(decode(m.bank_movement_ref || "
-            "repeat('=', (4 - length(m.bank_movement_ref) % 4) % 4), 'base64'),'UTF8')")
+    # Decode defensivo del ref con padding base64 -> texto
+    # '<seq(12)>   <saldo_centimos_con_signo>'. No todas las referencias PSD2
+    # pertenecen a CaixaBank N43: filtrar el alfabeto y la longitud ANTES de
+    # llamar a decode evita que una referencia opaca (por ejemplo con ':')
+    # aborte el lote completo. encode(..., 'escape') evita además excepciones
+    # de UTF-8 sobre bytea válidos que no sean texto N43; _OK los descartará.
+    _REF = "regexp_replace(m.bank_movement_ref, '=+$', '')"
+    _DEC = ("CASE WHEN " + _REF + " ~ '^[A-Za-z0-9+/]+$' AND "
+            "length(" + _REF + ") % 4 <> 1 THEN encode(decode(" + _REF + " || "
+            "repeat('=', (4 - length(" + _REF + ") % 4) % 4), 'base64'),'escape') END")
     _BAL = "(regexp_replace(" + _DEC + r", '^.*?(-?[0-9]+)[^0-9]*$', '\1'))::numeric/100"
     _SEQ = "(regexp_replace(" + _DEC + r", '^\s*([0-9]+).*$', '\1'))::bigint"
     _OK  = ("m.bank_movement_ref IS NOT NULL AND " + _DEC + " ~ '^[0-9]{8,}' AND "
