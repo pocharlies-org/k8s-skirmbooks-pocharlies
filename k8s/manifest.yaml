@@ -222,24 +222,10 @@ spec:
     - name: http
       port: 80
       targetPort: 3050
----
-# LAN/Tailscale-only access (financial app, not internet-facing).
-# Resolves via *.lan.e-dani.com → traefik-lan LB (192.168.50.240).
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: skirmbooks-ui-lan
-  namespace: skirmshop
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: Host(`skirmbooks.lan.e-dani.com`)
-      services:
-        - name: skirmbooks-ui
-          port: 80
-  tls:
-    store:
-      name: default
-      namespace: traefik-lan
+# NOTA: el acceso LAN (IngressRoute skirmbooks-ui-lan, Host skirmbooks.lan.e-dani.com)
+# se RETIRÓ 2026-07-11 (solo daba confusión: mostraba el form de contraseña sin el
+# botón de Google, porque bypaseaba el oauth2-proxy). Acceso único = edge público
+# https://skirmbooks.e-dani.com (SSO Keycloak/Google), definido en k8s-infra-pocharlies
+# networking/traefik-edge/legacy-public-routes.yaml. Break-glass si el SSO cae:
+# `kubectl -n skirmshop port-forward svc/skirmbooks-ui 3050:80` (form de contraseña de la app)
+# o re-crear este IngressRoute temporalmente.
