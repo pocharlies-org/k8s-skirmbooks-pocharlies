@@ -668,7 +668,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bank-sync-alerts-20260713b-delta@sha256:dc5cbc17ecf6a4de2cf3da872fa7a35301e4cc634526d3926d9ed0038e5ff334
         args:
         - synapse_adapter_banking
         env:
@@ -770,7 +770,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:paypal-expenses-20260709@sha256:e66aa6a2f04daf3da772d55e0ae50970e3dc47e9043dfa6df577b6b41255d18a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bank-sync-alerts-20260713b-delta@sha256:dc5cbc17ecf6a4de2cf3da872fa7a35301e4cc634526d3926d9ed0038e5ff334
         args:
         - synapse_adapter_banking
         env:

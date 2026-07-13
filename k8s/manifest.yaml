@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:singlefetch-gate-fix-20260711@sha256:dccc2113ca7be1bdc3d5da1bdcdedd9d1b52456e32020b2c9dce4dedacb4b249
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:bank-sync-alerts-20260713b@sha256:d11fd57b25771fc730b4eccd3ef8de5fdd9eef9851736d941055984ae934aac3
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
