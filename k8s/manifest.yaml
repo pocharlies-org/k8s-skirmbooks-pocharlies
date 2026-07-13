@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:bank-sync-alerts-20260713b@sha256:d11fd57b25771fc730b4eccd3ef8de5fdd9eef9851736d941055984ae934aac3
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:bancos-dualfecha-20260713@sha256:06d77c7d0b292779913aba65532b4df7477f63db94655a21e33ef8f70c9425be
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
