@@ -143,3 +143,73 @@ spec:
           - name: credentials
             secret:
               secretName: skirmbooks-backend-secrets
+---
+# Moreno Ibáñez: mismo bucle match-primero + búsqueda Gmail, aislado en su
+# tenant y sin mensajes de Telegram. El buzón se resuelve en el adapter como
+# `gmail.mailboxes.moreno` (me@e-dani.com).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-facturas-daily-moreno
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-facturas-daily-moreno
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "15 10 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-facturas-daily-moreno
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: facturas-daily
+            image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
+            command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
+            env:
+            - name: FACTURAS_TENANT
+              value: moreno
+            - name: FACTURAS_SEARCH_CAP
+              value: "12"
+            - name: FACTURAS_ANNOUNCE_CAP
+              value: "0"
+            - name: FACTURAS_NOTIFY
+              value: "0"
+            - name: FACTURAS_REAP_HOURS
+              value: "24"
+            - name: FACTURAS_DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets

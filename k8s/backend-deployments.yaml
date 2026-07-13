@@ -633,6 +633,8 @@ spec:
       app: skirmbooks-banking-psd2
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
       labels:
         app: skirmbooks-banking-psd2
         app.kubernetes.io/name: skirmbooks-banking-psd2
@@ -735,6 +737,8 @@ spec:
       app: skirmbooks-banking-imports
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
       labels:
         app: skirmbooks-banking-imports
         app.kubernetes.io/name: skirmbooks-banking-imports
@@ -837,6 +841,8 @@ spec:
       app: skirmbooks-banking-reconcile
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
       labels:
         app: skirmbooks-banking-reconcile
         app.kubernetes.io/name: skirmbooks-banking-reconcile
@@ -1711,7 +1717,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:
@@ -1833,7 +1839,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:
@@ -1955,7 +1961,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:
@@ -2088,7 +2094,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:
@@ -2210,7 +2216,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:
@@ -2332,7 +2338,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
         args:
         - synapse_adapter_invoicing
         env:

@@ -58,7 +58,7 @@ data:
     \ 0.95\n  tier2_suggest_threshold: 0.7\n  tier2_weights_name: 0.3\n  tier2_weights_amount:\
     \ 0.3\n  tier2_weights_date: 0.2\n  tier2_weights_concept: 0.2\n  subset_sum_max_invoices:\
     \ 6\ntransfer_detection:\n  enabled: true\n  date_window_days: 2\n  amount_tolerance:\
-    \ 0.01\ntenants:\n- skirmshop\n"
+    \ 0.01\ntenants:\n- skirmshop\n- moreno\n"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -108,7 +108,7 @@ data:
     \ tooling\n  vision_model: tooling\n  timeout_s: 120\n  max_images_per_pdf: 8\n\
     vision_studio:\n  enabled: true\n  base_url: http://dgx-dashboard-backend.control-nexus.svc.cluster.local:9002\n  hq_timeout_s: 1800\n  hq_poll_s: 5\n  confidence_threshold: 0.85\n\
     storage:\n  backend: s3\n  endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000\n  bucket: skirmshop-drive\n  region: us-east-1\n  prefix: skirmbooks/invoicing\n  access_key_env: AWS_ACCESS_KEY_ID\n  secret_key_env: AWS_SECRET_ACCESS_KEY\n  secure: false\n  root: /var/lib/synapse/gestoria/invoicing\n  pdf_dpi: 200\n  image_format:\
-    \ png\norphan_request:\n  timeout_days: 14\ndocintake_gate:\n  enabled: true\ntenants:\n- skirmshop\n"
+    \ png\ngmail:\n  mailbox: info@e-dani.com\n  mailboxes:\n    moreno: me@e-dani.com\norphan_request:\n  timeout_days: 14\ndocintake_gate:\n  enabled: true\ntenants:\n- skirmshop\n- moreno\n"
 ---
 apiVersion: v1
 kind: ConfigMap
