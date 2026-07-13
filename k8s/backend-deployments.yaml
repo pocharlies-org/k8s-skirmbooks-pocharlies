@@ -1711,7 +1711,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
@@ -1833,7 +1833,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:f2-draft-20260620@sha256:1b2e9baa9c1ae6c5e523104cb8a3d89cb0d4290ecf026e012b2042a96a71732f
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
@@ -1955,7 +1955,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoice-reconcile-terminal-20260710@sha256:82623a79a4482e4d687179dc3fe4b9e35c9cc78a0b956dc86628656d8b708a35
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
@@ -2088,7 +2088,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
@@ -2210,7 +2210,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:multiempresa-20260611-8-delta@sha256:a7f857b6386f3158abab193baf2b3e39350841f273467a6cd23e9dc0bd0aad0b
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
@@ -2332,7 +2332,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-20260611-3-delta@sha256:eab6a2cb4a4025a6846c4e7effa9917cd143e60d70f3d21f742e11db15811c48
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:drive-backup-20260713@sha256:1f0a3aac422f35c4fdca5d3118b8750a78ec6e561423c2654a8a235eb60156e9
         args:
         - synapse_adapter_invoicing
         env:
