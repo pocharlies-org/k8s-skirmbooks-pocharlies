@@ -1,0 +1,72 @@
+# Digest diario de facturas pendientes de conciliar — tenant MORENO (Moreno
+# Ibáñez SL) → topic "Facturas" (thread 5518) del grupo Telegram hogar
+# (-1003749364241).
+#
+# DIGEST-ONLY a propósito (entrypoint facturas_digest, NO facturas_daily): el
+# bucle completo de conciliación (match_movement + email_search + orphan
+# requests) requiere buzón propio y adapters bindeados para moreno — hoy solo
+# queremos el mensaje-resumen. Si no hay nada pendiente, no publica (0 ruido).
+# La consulta interactiva "facturas de <mes>" en el mismo topic la sirve el
+# worker skirmbooks-banking-facturas (banking.moreno.facturas.query).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-facturas-digest-moreno
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-facturas-digest-moreno
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "0 10 * * *"          # 10:00 UTC, alineado con el daily de skirmshop
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-facturas-digest-moreno
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: facturas-digest
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-hogar-20260714-delta@sha256:5c885d5f790f0d3869fc4d76842d026685d8e21bb893ea1e493551a3c3d7e7f5
+            command: ["python", "-m", "synapse_adapter_banking.facturas_digest"]
+            env:
+            - name: FACTURAS_TENANT
+              value: moreno
+            - name: FACTURAS_CHAT_ID
+              value: "-1003749364241"
+            - name: FACTURAS_TOPIC_THREAD_ID
+              value: "5518"
+            - name: FACTURAS_DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
