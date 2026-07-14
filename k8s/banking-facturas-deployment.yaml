@@ -1,0 +1,109 @@
+# Consulta on-demand "facturas de <mes>" (pendientes de conciliar).
+#
+# Deployment AISLADA a propósito: consume SOLO banking.<tenant>.facturas.query
+# (publicado por synapse-adapter-telegram cuando un operador pregunta en un
+# topic Facturas — Skirmshop ES OP → tenant skirmshop, hogar → tenant moreno)
+# y responde por messaging.<tenant>.send al mismo chat+thread. No comparte
+# imagen ni allow-list con skirmbooks-banking-reconcile para no acoplar el
+# ciclo de release del matcher con esta lane de consulta (decisión 2026-07-14).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-banking-facturas
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-facturas
+    app.kubernetes.io/name: skirmbooks-banking-facturas
+    app.kubernetes.io/part-of: synapse
+    synapse.io/adapter: banking
+    synapse.io/worker-profile: facturas-query
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skirmbooks-banking-facturas
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-banking-facturas
+        app.kubernetes.io/name: skirmbooks-banking-facturas
+        app.kubernetes.io/part-of: skirmbooks
+    spec:
+      enableServiceLinks: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: banking
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-hogar-20260714-delta@sha256:5c885d5f790f0d3869fc4d76842d026685d8e21bb893ea1e493551a3c3d7e7f5
+        args:
+        - synapse_adapter_banking
+        env:
+        - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
+          value: /etc/synapse/adapter-gestoria-banking.yaml
+        - name: SYNAPSE_COMMAND_ACTIONS
+          value: facturas.query
+        ports:
+        - name: metrics
+          containerPort: 9522
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+          subPath: adapter-gestoria-banking.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 25m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - grep -q synapse_adapter /proc/1/cmdline
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-banking-config
+          items:
+          - key: adapter-gestoria-banking.yaml
+            path: adapter-gestoria-banking.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
