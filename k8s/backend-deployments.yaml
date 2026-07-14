@@ -1961,7 +1961,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:reconciliation-selfservice-20260713@sha256:91b0b958cadba1c20f46946ceb4dfda2decb31b46ccc71bcdeb890e4b022bd7c
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:ocr-null-confidence-20260714@sha256:db4a47f2b04251933cf5af62d09326d028bec91b2c70dabff805ddbde42be52f
         args:
         - synapse_adapter_invoicing
         env:
