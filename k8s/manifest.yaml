@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:reconciliation-selfservice-20260713@sha256:9a2933c7a74f3d81c4bf3c15300b7a99241cf44544dfac63f176beb3f087916b
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:invoice-hardening-20260715@sha256:34d0f3e02743ab47287866b643624abb24108b5bb9b7af25c56c68ea797b461f
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
