@@ -1961,7 +1961,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoice-drift-guard-20260715@sha256:9f2be4ca25fe250190b4e7cbfc28dd6fd9faf28664234c196f845e3b07161612
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoicing-reconcile-feedback-20260715-delta@sha256:a47f811e97a7e569c5cb84358795f7cfd87016f387f7cd09250fb7cc1dd8eb83
         args:
         - synapse_adapter_invoicing
         env:
