@@ -70,10 +70,12 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gastos-f4b-classifier-20260703-0330-delta@sha256:c5607f7461af8d88ae7f81f02e6a0091683a1e8494a2c467a684bf89a1b92856
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:litellm-base-20260722-delta@sha256:5433229fcd332be08860c16df0ac605c4c985590b220f3efc16067476ad6d8db
         args:
         - synapse_adapter_banking
         env:
+        - name: LITELLM_BASE_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         # classify_personal (F4b): clasificador del perfil PERSONAL. Dormante hasta que se
