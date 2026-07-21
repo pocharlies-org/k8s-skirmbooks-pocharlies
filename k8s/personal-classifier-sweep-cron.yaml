@@ -49,13 +49,21 @@ data:
 
         conn = await asyncpg.connect(dsn)
         # SOLO tenants con profile='personal' (el handler igualmente gatea por profile).
+        # gestoria_identity.tenants tiene RLS FORCE (policy tenants_select_scoped) y este cron
+        # conecta con gestoria_banking_app (no-superuser, no-bypassrls): SIN elevar el GUC la
+        # query devuelve 0 filas y el barrido no hacía NADA. Elevamos app.is_platform_admin
+        # solo para el DESCUBRIMIENTO (mismo patrón que synapse_shared discover_tenants) y lo
+        # bajamos acto seguido, de modo que las queries por tenant sigan acotadas por RLS.
         try:
+            await conn.execute("SELECT set_config('app.is_platform_admin','on',false)")
             rows = await conn.fetch(
                 "SELECT tenant_id FROM gestoria_identity.tenants WHERE profile='personal'")
             tenants = sorted({r["tenant_id"] for r in rows})
         except Exception as e:
             print(f"[personal-sweep] tenant discovery failed: {e}", flush=True)
             tenants = []
+        finally:
+            await conn.execute("SELECT set_config('app.is_platform_admin','off',false)")
         if not tenants:
             print("[personal-sweep] sin tenants personales -> nada que hacer", flush=True)
             await conn.close()
@@ -121,7 +129,7 @@ metadata:
     app: skirmbooks-personal-classifier-sweep
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  suspend: true                    # SUSPENDIDO — activar al dar de alta el tenant personal (ver runbook arriba)
+  suspend: false                   # ACTIVO desde 2026-07-21: el tenant personal (Hogar) ya tiene banco y movimientos
   schedule: "30 3 * * *"          # diario 03:30 (tras el sweep de gasto de las 03:00)
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
