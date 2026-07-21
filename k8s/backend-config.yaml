@@ -58,7 +58,7 @@ data:
     \ 0.95\n  tier2_suggest_threshold: 0.7\n  tier2_weights_name: 0.3\n  tier2_weights_amount:\
     \ 0.3\n  tier2_weights_date: 0.2\n  tier2_weights_concept: 0.2\n  subset_sum_max_invoices:\
     \ 6\ntransfer_detection:\n  enabled: true\n  date_window_days: 2\n  amount_tolerance:\
-    \ 0.01\ntenants:\n- skirmshop\n- moreno\n"
+    \ 0.01\ntenants:\n- skirmshop\n- moreno\n- personal\n"
 ---
 apiVersion: v1
 kind: ConfigMap
