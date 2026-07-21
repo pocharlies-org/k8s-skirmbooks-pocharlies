@@ -670,7 +670,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:bank-sync-alerts-20260713b-delta@sha256:dc5cbc17ecf6a4de2cf3da872fa7a35301e4cc634526d3926d9ed0038e5ff334
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:psu-type-profile-20260721-delta@sha256:1144cc61602590c2333d77145ae8c405570e5eed94a4a543a4a5122126330fa1
         args:
         - synapse_adapter_banking
         env:
@@ -774,7 +774,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:bank-sync-alerts-20260713b-delta@sha256:dc5cbc17ecf6a4de2cf3da872fa7a35301e4cc634526d3926d9ed0038e5ff334
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:psu-type-profile-20260721-delta@sha256:1144cc61602590c2333d77145ae8c405570e5eed94a4a543a4a5122126330fa1
         args:
         - synapse_adapter_banking
         env:
