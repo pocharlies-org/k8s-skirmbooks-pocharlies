@@ -130,7 +130,7 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
 spec:
   suspend: false                   # ACTIVO desde 2026-07-21: el tenant personal (Hogar) ya tiene banco y movimientos
-  schedule: "30 3 * * *"          # diario 03:30 (tras el sweep de gasto de las 03:00)
+  schedule: "0 7 * * *"           # 07:00 UTC: TRAS el import de las 06:40 (banking-daily-sync) y ANTES del digest de cobros de las 07:20, para que el digest muestre las categorías ya clasificadas y solo pregunte por botones lo genuinamente dudoso (antes corría 03:30, ANTES del import → los movimientos nuevos llegaban sin categorizar)
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 3

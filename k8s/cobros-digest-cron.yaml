@@ -1,0 +1,85 @@
+# Digest diario de banca PERSONAL del hogar (tenant `family`, profile `personal`).
+#
+# RECONCILIACIÓN DE DRIFT (2026-07-22): este CronJob estaba VIVO en el cluster pero
+# su manifest NO existía en gitops (se aplicó fuera de banda). Se trae aquí tal cual
+# corría + las dos features nuevas del digest:
+#   - Feature 1 (mostrar categoría): sale sola con la imagen nueva (cobros_report).
+#   - Feature 2 (preguntar por botones): controlada por COBROS_MAX_ASK. Se entrega
+#     DORMIDA (MAX_ASK=0) hasta que el engine de synapse tenga el workflow
+#     `family.banking.recategorize` (si no, los botones no harían nada). Cuando el
+#     engine lo tenga, subir MAX_ASK (p.ej. 10) para encenderla.
+#
+# Orden diario (UTC): 06:40 import (banking-daily-sync) → 07:00 clasificación
+# (personal-classifier-sweep, movido aquí para que el digest muestre categorías) →
+# 07:20 este digest.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-hogar-cobros-digest
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-hogar-cobros-digest
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "20 7 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  suspend: false
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-hogar-cobros-digest
+        spec:
+          containers:
+          - name: cobros-digest
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:hogar-cat-20260722@sha256:9539a067fd58d47b0216e08a994b7025bf65b2b5cf5ae305fc39e2f6130a7bbe
+            command: ["python", "-m", "synapse_adapter_banking.cobros_digest"]
+            env:
+            - name: COBROS_TENANT
+              value: family
+            - name: COBROS_CHAT_ID
+              value: "-1003749364241"
+            - name: COBROS_TOPIC_KEY
+              value: static:banca
+            - name: COBROS_TOPIC_NAME
+              value: "🏦 Banca"
+            - name: COBROS_DRY_RUN
+              value: "0"
+            # Feature 2 (botones de categoría) DORMIDA hasta que el engine tenga el
+            # workflow family.banking.recategorize. Subir a "10" para encenderla.
+            - name: COBROS_MAX_ASK
+              value: "0"
+            resources:
+              limits:
+                cpu: 250m
+                memory: 256Mi
+              requests:
+                cpu: 25m
+                memory: 96Mi
+            volumeMounts:
+            - mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              name: config
+              subPath: adapter-gestoria-banking.yaml
+            - mountPath: /etc/synapse/credentials
+              name: credentials
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          restartPolicy: Never
+          tolerations:
+          - effect: NoSchedule
+            key: role
+            operator: Equal
+            value: edge
+          volumes:
+          - configMap:
+              name: skirmbooks-banking-config
+            name: config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
