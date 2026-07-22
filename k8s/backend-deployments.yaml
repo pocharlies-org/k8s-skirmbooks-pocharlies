@@ -570,6 +570,8 @@ spec:
         args:
         - synapse_adapter_banking
         env:
+        - name: LITELLM_BASE_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_LEGACY_DRAIN_QUEUE
@@ -674,6 +676,8 @@ spec:
         args:
         - synapse_adapter_banking
         env:
+        - name: LITELLM_BASE_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
@@ -778,6 +782,8 @@ spec:
         args:
         - synapse_adapter_banking
         env:
+        - name: LITELLM_BASE_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
@@ -882,6 +888,8 @@ spec:
         args:
         - synapse_adapter_banking
         env:
+        - name: LITELLM_BASE_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
         - name: SYNAPSE_ADAPTER_GESTORIA_BANKING_CONFIG
           value: /etc/synapse/adapter-gestoria-banking.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
