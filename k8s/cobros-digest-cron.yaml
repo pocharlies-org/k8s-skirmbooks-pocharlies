@@ -53,7 +53,7 @@ spec:
             # Feature 2 (botones de categoría) DORMIDA hasta que el engine tenga el
             # workflow family.banking.recategorize. Subir a "10" para encenderla.
             - name: COBROS_MAX_ASK
-              value: "0"
+              value: "10"
             resources:
               limits:
                 cpu: 250m
