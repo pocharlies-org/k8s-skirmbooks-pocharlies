@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:facturas-emitidas-llm-20260729-2@sha256:ad2aa528bb48c61bbe57c323715ee507689e6436494baa99779c50bb71a23efb
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:unmatch-state-drift-20260729@sha256:1da2d8b89fe20dd027f7e496dd498388429019cb249b09755f12ed7a0d917b37
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
