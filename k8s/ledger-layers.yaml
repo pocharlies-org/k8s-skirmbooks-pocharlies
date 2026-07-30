@@ -1,0 +1,186 @@
+# skirmbooks-ledger-layers — las TRES CAPAS del libro contable y su conciliación.
+#
+#   capa 1  lo presentado a la AEAT  → gestoria_tax.presented_declarations
+#   capa 2  el libro de la gestoría  → gestoria_accounting.external_ledger_* (mig. 0081)
+#   capa 3  el nuestro               → gestoria_accounting.journal_*
+#
+# Por qué existe: el 30-07-2026 se reportó que faltaban 49 DUAs de importación por
+# contabilizar (36.199,45 € de IVA). Al cruzarlos contra el diario de la gestoría, 44
+# de los 49 estaban contabilizados. Nuestro libro de 2025 tiene 1.038 apuntes donde el
+# suyo tiene 8.121: es una importación parcial, y sin conciliación cualquier "esto no
+# está contabilizado" es indemostrable.
+#
+# NO lleva imagen propia: va dentro de `skirmbooks-backend` como los 11 adapters, y
+# arranca con args porque el ENTRYPOINT de esa imagen es `python -m`. Así comparte el
+# ConfigMap y el fichero de credenciales de accounting y no añade ni un secreto nuevo.
+#
+# ⚠️ replicas: 0 A PROPÓSITO — y esto NO se sube a 1 hasta construir imagen nueva.
+#
+# Comprobado el 2026-07-31 en el pod que corre ahora mismo:
+#   · imagen desplegada: skirmbooks-backend:multiempresa-20260611-8-delta
+#   · `import skirmbooks_ledger_layers` → False, el paquete NO está
+#   · el Dockerfile de main@42fec7c (la imagen "completa desde main" del 30-jul)
+#     tampoco lo traía: el servicio se añadió al Dockerfile en main@4b03a29
+#
+# Arrancarlo con la imagen actual daría ModuleNotFoundError en bucle. Y hay un segundo
+# motivo, comprobado también en un pod: sin `python-multipart` el servicio ARRANCA y
+# muere con RuntimeError, porque FastAPI lo exige para el UploadFile del endpoint de
+# importación. Eso no falla en el build, falla en runtime — por eso el Dockerfile delta
+# lo instala explícitamente.
+#
+# Secuencia para activarlo:
+#   1. lanzar release.yml con build_backend desde main (≥ 4b03a29)
+#   2. sustituir `image:` de abajo por el nuevo tag@sha256
+#   3. subir replicas a 1 y comprobar /healthz → {"status":"ok","configured":true}
+#
+# Mientras siga a 0 este manifest es inerte: el Deployment existe sin pods y el Service
+# sin endpoints. La app tiene autosync con selfHeal, así que se aplicará solo — seguro.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skirmbooks-ledger-layers
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-ledger-layers
+    app.kubernetes.io/name: skirmbooks-ledger-layers
+    app.kubernetes.io/part-of: skirmbooks
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/component: skirmbooks-backend
+spec:
+  replicas: 0
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: skirmbooks-ledger-layers
+  template:
+    metadata:
+      labels:
+        app: skirmbooks-ledger-layers
+        app.kubernetes.io/name: skirmbooks-ledger-layers
+        app.kubernetes.io/part-of: skirmbooks
+    spec:
+      enableServiceLinks: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: skirmbooks
+      tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harbor-pull
+      containers:
+      - name: ledger-layers
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:fiscal-shared-valkey-passwordenv-20260701-delta@sha256:5930749c40473f3b18687f1376d67fd9ddc2f1e5f2136c6db22074afadf1bc92
+        args:
+        - skirmbooks_ledger_layers
+        env:
+        # El DSN sale del YAML de accounting (usuario sí, contraseña no) y la
+        # contraseña de /etc/synapse/credentials. Ese rol ya tiene permiso en las tres
+        # capas y NO salta RLS, así que el aislamiento por tenant sigue en pie.
+        - name: LEDGER_LAYERS_CONFIG
+          value: /etc/synapse/adapter-gestoria-accounting.yaml
+        - name: SYNAPSE_CREDENTIALS_DIR
+          value: /etc/synapse/credentials
+        - name: DEFAULT_TENANT
+          value: skirmshop
+        # Un diario trae 8-10 mil apuntes por ejercicio: sin tope, un GET sin filtros
+        # devolvería el año completo.
+        - name: MAX_PAGE_SIZE
+          value: "500"
+        - name: PORT
+          value: "8091"
+        ports:
+        - name: http
+          containerPort: 8091
+        volumeMounts:
+        - name: config
+          mountPath: /etc/synapse/adapter-gestoria-accounting.yaml
+          subPath: adapter-gestoria-accounting.yaml
+          readOnly: true
+        - name: credentials
+          mountPath: /etc/synapse/credentials
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 192Mi
+          limits:
+            # Parsear un diario de 10.000 apuntes carga el árbol XML en memoria.
+            # 768Mi da margen sobrado; el pico medido en local fue ~180Mi.
+            memory: 768Mi
+        # /healthz responde 200 aunque no haya DSN (el servicio arranca inerte a
+        # propósito), así que esto comprueba que el proceso vive — no que pueda leer
+        # la base. El estado real de la conexión sale en el campo `configured`.
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8091
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8091
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+      volumes:
+      - name: config
+        configMap:
+          name: skirmbooks-accounting-config
+          items:
+          - key: adapter-gestoria-accounting.yaml
+            path: adapter-gestoria-accounting.yaml
+      - name: credentials
+        secret:
+          secretName: skirmbooks-backend-secrets
+          defaultMode: 292
+---
+# Sin Ingress ni HTTPRoute a propósito: esta API lee y escribe contabilidad, y no tiene
+# autenticación propia (el tenant llega por cabecera X-Tenant-Id, que no es una
+# credencial). Se consume desde dentro del clúster — la UI o los agentes — o a mano con
+#   kubectl -n skirmshop port-forward svc/skirmbooks-ledger-layers 8091:80
+# y entonces el Swagger queda en http://localhost:8091/docs
+# Si algún día se expone al exterior, va detrás del oauth2-proxy como skirmbooks-ui,
+# nunca directa.
+apiVersion: v1
+kind: Service
+metadata:
+  name: skirmbooks-ledger-layers
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-ledger-layers
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  selector:
+    app: skirmbooks-ledger-layers
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8091
