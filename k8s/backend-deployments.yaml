@@ -884,7 +884,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:banking-reconcile-nodupe-20260728-delta@sha256:60383151d4254abc05d12edb09002cfa7f6d2d9b6488c57357c943b9c27ee29c
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:banking-main-20260730-delta@sha256:1e4128b3da5aff23d3e8973127a36a836a73b597ce4c830bf652e7b53b69b141
         args:
         - synapse_adapter_banking
         env:
