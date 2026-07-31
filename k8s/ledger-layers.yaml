@@ -14,27 +14,18 @@
 # arranca con args porque el ENTRYPOINT de esa imagen es `python -m`. Así comparte el
 # ConfigMap y el fichero de credenciales de accounting y no añade ni un secreto nuevo.
 #
-# ⚠️ replicas: 0 A PROPÓSITO — y esto NO se sube a 1 hasta construir imagen nueva.
+# ACTIVO desde 2026-07-31 con la imagen ledger-layers-20260731, construida desde
+# main@4b03a29 (el primer commit cuyo Dockerfile incluye el servicio: la imagen anterior
+# "completa desde main", 42fec7c, todavía no lo traía).
 #
-# Comprobado el 2026-07-31 en el pod que corre ahora mismo:
-#   · imagen desplegada: skirmbooks-backend:multiempresa-20260611-8-delta
-#   · `import skirmbooks_ledger_layers` → False, el paquete NO está
-#   · el Dockerfile de main@42fec7c (la imagen "completa desde main" del 30-jul)
-#     tampoco lo traía: el servicio se añadió al Dockerfile en main@4b03a29
+# El digest se verificó antes de activarlo, levantando un pod efímero con esa imagen:
+# el paquete está, python-multipart está y la app se crea con sus 10 rutas. Esa
+# comprobación no es ceremonia: sin python-multipart el servicio ARRANCA y muere con
+# RuntimeError, porque FastAPI lo exige para el UploadFile del endpoint de importación —
+# y eso no rompe el build, rompe el runtime.
 #
-# Arrancarlo con la imagen actual daría ModuleNotFoundError en bucle. Y hay un segundo
-# motivo, comprobado también en un pod: sin `python-multipart` el servicio ARRANCA y
-# muere con RuntimeError, porque FastAPI lo exige para el UploadFile del endpoint de
-# importación. Eso no falla en el build, falla en runtime — por eso el Dockerfile delta
-# lo instala explícitamente.
-#
-# Secuencia para activarlo:
-#   1. lanzar release.yml con build_backend desde main (≥ 4b03a29)
-#   2. sustituir `image:` de abajo por el nuevo tag@sha256
-#   3. subir replicas a 1 y comprobar /healthz → {"status":"ok","configured":true}
-#
-# Mientras siga a 0 este manifest es inerte: el Deployment existe sin pods y el Service
-# sin endpoints. La app tiene autosync con selfHeal, así que se aplicará solo — seguro.
+# Si hay que dejarlo inerte otra vez, basta con replicas: 0. El Deployment queda sin
+# pods y el Service sin endpoints, sin borrar nada.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,7 +38,7 @@ metadata:
     e-dani.com/portfolio: skirmshop
     e-dani.com/component: skirmbooks-backend
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: RollingUpdate
   selector:
@@ -90,7 +81,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: ledger-layers
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:fiscal-shared-valkey-passwordenv-20260701-delta@sha256:5930749c40473f3b18687f1376d67fd9ddc2f1e5f2136c6db22074afadf1bc92
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ledger-layers-20260731@sha256:94b20ef8fea05400326bd911d018d68fd215ecbcf3a8f5ea45f64ff0a784dd0f
         args:
         - skirmbooks_ledger_layers
         env:
