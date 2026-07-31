@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:invoice-pdf-backfill-20260731@sha256:bd0bfa67802bdd69f12dc0d13870ec96eef01c0878f47b9df51865b3e6bc26ef
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:invoice-pdf-reprint-20260731@sha256:2a95d11ed3b8a8b6f44acc4269415fb6e215d76c8fd1f129c997841550c079f0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
