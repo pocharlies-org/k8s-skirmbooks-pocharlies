@@ -48,7 +48,7 @@ data:
   adapter-gestoria-banking.yaml: "service: synapse-adapter-gestoria-banking\ndocintake_gate:\n  enabled: true\nlogging:\n\
     \  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9522\ndatabase:\n\
     \  dsn: postgresql://gestoria_banking_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_banking@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
+    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_banking@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
     psd2:\n  aggregator: enable_banking\n  base_url: https://api.enablebanking.com\n\
     \  initial_history_days: 90\n  daily_lookback_days: 7\nstripe:\n  api_key_credential:\
     \ stripe.api_key\n  webhook_secret_credential: stripe.webhook_secret\npaypal:\n\
