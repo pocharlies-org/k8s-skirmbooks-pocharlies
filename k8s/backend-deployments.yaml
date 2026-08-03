@@ -1847,7 +1847,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
+        image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:invoice-providers-20260803@sha256:eccc80edad25003ec3dd44aad986cf6255d218357122c3e7dc83818cdc068dfe
         args:
         - synapse_adapter_invoicing
         env:
