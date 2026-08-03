@@ -100,15 +100,61 @@ metadata:
   name: skirmbooks-invoicing-config
   namespace: skirmshop
 data:
-  adapter-gestoria-invoicing.yaml: "service: synapse-adapter-gestoria-invoicing\n\
-    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9523\n\
-    database:\n  dsn: postgresql://gestoria_invoicing_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 2\n  max_size: 10\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_invoicing@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
-    litellm:\n  base_url: http://litellm.litellm.svc.cluster.local:4000/v1\n  text_model:\
-    \ tooling\n  vision_model: tooling\n  timeout_s: 120\n  max_images_per_pdf: 8\n\
-    vision_studio:\n  enabled: true\n  base_url: http://dgx-dashboard-backend.control-nexus.svc.cluster.local:9002\n  hq_timeout_s: 1800\n  hq_poll_s: 5\n  confidence_threshold: 0.85\n\
-    storage:\n  backend: s3\n  endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000\n  bucket: skirmshop-drive\n  region: us-east-1\n  prefix: skirmbooks/invoicing\n  access_key_env: AWS_ACCESS_KEY_ID\n  secret_key_env: AWS_SECRET_ACCESS_KEY\n  secure: false\n  root: /var/lib/synapse/gestoria/invoicing\n  pdf_dpi: 200\n  image_format:\
-    \ png\ngmail:\n  mailbox: info@e-dani.com\n  mailboxes:\n    moreno: me@e-dani.com\norphan_request:\n  timeout_days: 14\ndocintake_gate:\n  enabled: true\ntenants:\n- skirmshop\n- moreno\n"
+  adapter-gestoria-invoicing.yaml: |
+    service: synapse-adapter-gestoria-invoicing
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9523
+    database:
+      dsn: postgresql://gestoria_invoicing_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+      min_size: 2
+      max_size: 10
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_invoicing@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    litellm:
+      base_url: http://litellm.litellm.svc.cluster.local:4000/v1
+      text_model: tooling
+      vision_model: tooling
+      timeout_s: 120
+      max_images_per_pdf: 8
+    vision_studio:
+      enabled: true
+      base_url: http://dgx-dashboard-backend.control-nexus.svc.cluster.local:9002
+      hq_timeout_s: 1800
+      hq_poll_s: 5
+      confidence_threshold: 0.85
+    storage:
+      backend: s3
+      endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+      bucket: skirmshop-drive
+      region: us-east-1
+      prefix: skirmbooks/invoicing
+      access_key_env: AWS_ACCESS_KEY_ID
+      secret_key_env: AWS_SECRET_ACCESS_KEY
+      secure: false
+      root: /var/lib/synapse/gestoria/invoicing
+      pdf_dpi: 200
+      image_format: png
+    gmail:
+      mailbox: info@e-dani.com
+      mailboxes:
+        moreno: me@e-dani.com
+    orphan_request:
+      timeout_days: 14
+    docintake_gate:
+      enabled: true
+    tenants:
+    - skirmshop
+    - moreno
+    ovh:
+      enabled: true
+      default_endpoint: ovh-eu
+      timeout_s: 60.0
+      date_window_days: 5
+      max_decompressed_bytes: 52428800
 ---
 apiVersion: v1
 kind: ConfigMap
