@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:fiscal-lookup-found-fix-20260731@sha256:dbaa95ad6c7d914d61a4bba6e1aa8d3619870bb05686ca7d5eb9fde0771d0444
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:caixabank-web-liquidation-20260804@sha256:eca54c449e35c511e6ac681596a97b2a8fc1b8f1c9be339a09e2f245ea9e5a64
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
