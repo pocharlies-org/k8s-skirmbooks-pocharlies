@@ -686,8 +686,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-reporting-refresh
   pollingInterval: 30
-  cooldownPeriod: 300
-  minReplicaCount: 0
+  cooldownPeriod: 21600
+  minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
   - type: rabbitmq
@@ -697,7 +697,6 @@ spec:
       value: '10'
       queueName: ^adapter\.reporting\.view\.refresh$
       useRegex: "true"
-      activationQueueLength: "1"
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -715,8 +714,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-reporting-search
   pollingInterval: 30
-  cooldownPeriod: 300
-  minReplicaCount: 0
+  cooldownPeriod: 21600
+  minReplicaCount: 1
   maxReplicaCount: 2
   triggers:
   - type: rabbitmq
@@ -726,7 +725,6 @@ spec:
       value: '10'
       queueName: ^adapter\.reporting\.search$
       useRegex: "true"
-      activationQueueLength: "1"
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
