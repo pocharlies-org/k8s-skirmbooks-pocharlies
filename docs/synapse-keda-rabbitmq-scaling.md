@@ -53,8 +53,11 @@ ssh sauvage 'docker ps --filter name=rabbitmq-management-proxy; docker logs --ta
 Expected state:
 
 - HPAs show `0/<threshold>` rather than `<unknown>`.
-- Every non-legacy worker profile keeps `REPLICAS=1` while idle.
-- `idleReplicaCount0` is empty.
+- Batch worker profiles that opted into scale-to-zero sit at `REPLICAS=0` while idle
+  and are woken by KEDA from the queue (see "Scale-to-zero" below). Every other
+  non-legacy profile keeps `REPLICAS=1`.
+- `idleReplicaCount0` is empty — scale-to-zero uses `minReplicaCount: 0`, not
+  `idleReplicaCount`.
 - KEDA operator has no fresh RabbitMQ errors.
 
 ## Rollback
@@ -76,6 +79,24 @@ Do not remove the proxy while KEDA RabbitMQ ScaledObjects are active; HPAs will 
 
 ## Gotchas
 
-- Do not use `idleReplicaCount: 0` for these profile Deployments. It allows KEDA to deactivate idle profiles and violates the requirement to keep one executor warm.
-- KEDA must point to `synapse-rmq`, not `shared-rabbitmq`, because workers consume from the `sauvage` broker.
+- Scale-to-zero is allowed ONLY for batch profiles, and via `minReplicaCount: 0` —
+  never `idleReplicaCount: 0`. Interactive profiles (invoicing-ocr,
+  banking-classifier, fiscal-classifier, identity-core) and the two with real load
+  (accounting-derived, banking-reconcile) keep one executor warm: a user is waiting
+  on them and a cold start is visible.
+- It is safe because the `adapter.*` queues survive having zero consumers — verified
+  on the live broker: `durable=true`, `auto_delete=false`, NO `x-expires`,
+  `x-message-ttl=604800000` (7 days), `x-max-length=100000`, `x-queue-mode=lazy`,
+  dead-lettering to `dlx`. KEDA reads the queue over the management API, so it sees
+  the backlog with no consumer attached and scales 0 -> 1. If a queue is ever
+  redeclared WITH `x-expires`, scale-to-zero on it becomes unsafe: the queue would
+  vanish while idle, KEDA's regex would match nothing, and the work would be dropped
+  in silence.
+- A profile that scales to zero needs `activationQueueLength` set explicitly (1 for
+  batch) and a `cooldownPeriod` short enough to matter — the historical 21600 (6 h)
+  means it would never actually reach zero.
+- KEDA points at `synapse-rmq`, which is a HEADLESS ALIAS for the same cluster as
+  `shared-rabbitmq` (both resolve to shared-rabbitmq-0/1/2 in ns `databases`) —
+  verified 2026-08-04. They are not two brokers. There is no separate `sauvage`
+  broker any more.
 - Single-action queue triggers should also use `useRegex: "true"` and exact regex queue names. This avoids RabbitMQ exact queue endpoint mismatches and keeps behavior consistent across single and multi-action profiles.
