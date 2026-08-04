@@ -98,8 +98,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-accounting-maintenance
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 6
   triggers:
   - type: rabbitmq
@@ -109,6 +109,7 @@ spec:
       value: '1'
       queueName: ^adapter\.accounting\.(retention\.archive|amortization\.run)$
       useRegex: 'true'
+      activationQueueLength: '1'
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -546,8 +547,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-notifications-deh
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 6
   triggers:
   - type: rabbitmq
@@ -557,6 +558,7 @@ spec:
       value: '1'
       queueName: ^adapter\.notifications\.(deh\.poll|deh\.open)$
       useRegex: 'true'
+      activationQueueLength: '1'
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -658,8 +660,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-reporting-cashflow
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 6
   triggers:
   - type: rabbitmq
@@ -669,6 +671,7 @@ spec:
       value: '1'
       queueName: ^adapter\.reporting\.cashflow\.project$
       useRegex: "true"
+      activationQueueLength: "1"
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -744,8 +747,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-shopify-sii-bridge-poll
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 6
   triggers:
   - type: rabbitmq
@@ -755,6 +758,7 @@ spec:
       value: '1'
       queueName: ^adapter\.sii_emitted\.invoice\.poll$
       useRegex: "true"
+      activationQueueLength: "1"
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -856,8 +860,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-sii-inbound-reconcile
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 6
   triggers:
   - type: rabbitmq
@@ -867,6 +871,7 @@ spec:
       value: '1'
       queueName: ^adapter\.sii\.reconcile_aeat$
       useRegex: "true"
+      activationQueueLength: "1"
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
@@ -912,8 +917,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-tax-calendar
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 2
   triggers:
   - type: rabbitmq
@@ -923,6 +928,7 @@ spec:
       value: '10'
       queueName: ^adapter\.tax\.(calendar\.regenerate|calendar\.export_ics)$
       useRegex: 'true'
+      activationQueueLength: '1'
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
