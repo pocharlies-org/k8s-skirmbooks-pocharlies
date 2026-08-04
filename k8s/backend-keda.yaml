@@ -41,7 +41,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-accounting-derived
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -69,7 +69,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-accounting-entry
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -97,7 +97,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-accounting-maintenance
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -125,7 +125,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-accounting-period
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -153,7 +153,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-banking-imports
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -181,7 +181,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-banking-psd2
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -209,7 +209,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-banking-reconcile
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -237,7 +237,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-fiscal-validator-analysis
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -265,7 +265,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-fiscal-validator-validation
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -293,7 +293,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-identity-certs
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -321,7 +321,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-identity-core
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -349,7 +349,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-identity-privacy
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -377,7 +377,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-invoicing-classify
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -405,7 +405,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-invoicing-fast
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -433,7 +433,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-invoicing-issued
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -461,7 +461,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-invoicing-ocr
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -489,7 +489,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-invoicing-posting
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -517,7 +517,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-notifications-alerts
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -545,7 +545,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-notifications-deh
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -573,7 +573,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-payroll-hr
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -601,7 +601,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-payroll-payslip
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -629,7 +629,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-payroll-tgss
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -657,7 +657,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-reporting-cashflow
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -685,7 +685,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-reporting-refresh
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -713,7 +713,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-reporting-search
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -741,7 +741,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-shopify-sii-bridge-poll
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -769,7 +769,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-shopify-sii-bridge-request
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -797,7 +797,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-sii-inbound-assets
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -825,7 +825,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-sii-inbound-push
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -853,7 +853,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-sii-inbound-reconcile
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -881,7 +881,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-tax-aeat
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -909,7 +909,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-tax-calendar
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 2
@@ -937,7 +937,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-tax-modelo
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -965,7 +965,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-tax-sii
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6

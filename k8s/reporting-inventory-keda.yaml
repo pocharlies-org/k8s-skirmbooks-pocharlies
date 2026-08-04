@@ -17,7 +17,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-reporting-inventory
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 3

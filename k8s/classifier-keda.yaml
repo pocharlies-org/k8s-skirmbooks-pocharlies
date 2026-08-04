@@ -15,7 +15,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-banking-classifier
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
@@ -43,7 +43,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: skirmbooks-fiscal-classifier
-  pollingInterval: 30
+  pollingInterval: 60
   cooldownPeriod: 21600
   minReplicaCount: 1
   maxReplicaCount: 6
