@@ -109,23 +109,25 @@ Do not remove the proxy while KEDA RabbitMQ ScaledObjects are active; HPAs will 
   not `adapter.shopify_sii_bridge.*`. Read `spec.triggers[0].metadata.queueName` off
   the ScaledObject; publishing to a guessed name returns "published but NOT routed"
   and the message is silently dropped (the default exchange has no alternate-exchange).
-- **STOP — do not publish a bare `{"__keda_probe__":true}` against the current image.**
-  It worked on the pre-unification images, which rejected the malformed command to the
-  `dlq.` and stayed up. The `synapse-shared` vendored into `unify-20260805` does
-  `command["workflow_instance_id"]` unguarded in `adapter.py::_dispatch`, so a command
-  without that key raises `KeyError` and **kills the whole adapter process** (exit 1,
-  container restart). Observed on the reporting-search canary, 2026-08-05: one probe,
-  one crash. It recovered on restart and the message was dead-lettered correctly, so
-  nothing was lost — but on a profile at `minReplicaCount: 1` the message would be
-  redelivered and could crash-loop the worker.
-  To check a profile can wake from zero, use the no-publish pre-check below instead. If
-  you truly need to publish, the payload must carry `workflow_instance_id` — and then it
-  is no longer a no-op, so pick the action accordingly.
-  Historical numbers, measured 2026-08-04/05 with the old images: 0 -> 1 and consumed in
-  **46-89 s** for 7 profiles published concurrently, 62-166 s for 9 (the spread was
-  contention, not latency — see the cold-start breakdown below). Any probe message that
-  does reach a `dlq.` must be purged afterwards; verify it is yours (`count=1`, payload
-  contains `__keda_probe__`) before `purge_queue`.
+- To confirm a profile can wake from zero without running real business work, publish
+  `{"__keda_probe__":true}` to its queue. The worker wakes, finds the envelope malformed,
+  dead-letters it to that queue's `dlq.` and stays up. Purge the probe afterwards —
+  verify it is yours (`count=1`, payload contains `__keda_probe__`) before `purge_queue`.
+  Measured: 0 -> 1 and consumed in **46-89 s** for 7 profiles published concurrently,
+  62-166 s for 9 (that spread was image-pull contention, not latency — see the cold-start
+  breakdown below).
+  **This is only safe from `unify-20260805-2` onward.** In `unify-20260805` exactly, the
+  vendored `synapse-shared` did `command["workflow_instance_id"]` unguarded in
+  `adapter.py::_dispatch`, so the probe raised `KeyError` and **killed the whole adapter
+  process** (exit 1, container restart) instead of dead-lettering one message — on a
+  profile at `minReplicaCount: 1` the redelivered message could have crash-looped it.
+  Upstream had fixed this in synapse `b0fe996e` on 10 July, but `release.yml` vendors
+  synapse-shared with `cp -rn` so as not to clobber this repo's committed queue-split
+  patches, and `adapter.py` is one of those — upstream fixes to it never arrive. It was
+  ported by hand into `_vendor/synapse-shared` (skirmbooks-gestoria-src `881f663`).
+  Verified after the rebuild: same payload, message dead-lettered, **pod restarts 0**.
+  If you ever bump `synapse_ref`, re-check the patched files under `_vendor/` by hand;
+  the vendoring will not do it for you.
 - **Cold start, broken down** (single worker, measured 2026-08-05): up to **60 s** is
   just `pollingInterval` — KEDA only looks at the queue every 60 s. A further **~43 s**
   is pulling the 583 MB image when the node does not have it cached. The application
