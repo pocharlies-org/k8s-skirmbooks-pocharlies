@@ -3,8 +3,11 @@
 # Clone of keda-skirmbooks-reporting-cashflow EXCEPT: name/labels, target,
 # queueName regex, minReplicaCount, maxReplicaCount.
 #
-# minReplicaCount: 1 keeps one small pod warm so the durable inventory queue is
-# consumed without a scale-from-zero cold start. maxReplicaCount capped at 3.
+# minReplicaCount: 0 — this is a batch profile (monthly value_snapshot plus the
+# one-off backfill_wac); nothing is waiting on it, so a cold start is free. The
+# durable inventory queue survives having zero consumers (auto_delete=false, no
+# x-expires), KEDA sees its depth over the management API and scales 0 -> 1.
+# Cold start measured across this fleet: 46-89 s. maxReplicaCount capped at 3.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -18,8 +21,8 @@ spec:
   scaleTargetRef:
     name: skirmbooks-reporting-inventory
   pollingInterval: 60
-  cooldownPeriod: 21600
-  minReplicaCount: 1
+  cooldownPeriod: 300
+  minReplicaCount: 0
   maxReplicaCount: 3
   triggers:
   - type: rabbitmq
@@ -29,6 +32,7 @@ spec:
       value: '1'
       queueName: ^adapter\.reporting\.inventory\.(value_snapshot|backfill_wac)$
       useRegex: "true"
+      activationQueueLength: '1'
       operation: sum
     authenticationRef:
       name: skirmbooks-rabbitmq-http
