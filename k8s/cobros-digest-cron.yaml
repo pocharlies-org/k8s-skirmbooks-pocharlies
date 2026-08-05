@@ -24,6 +24,10 @@ spec:
   schedule: "20 7 * * *"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 3
+  # Absorbidos de hogar-cobros-digest-cron.yaml, que definía ESTE MISMO CronJob
+  # por duplicado (ArgoCD: RepeatedResourceWarning). Ver el commit que borra aquel.
+  successfulJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
   suspend: false
   jobTemplate:
     spec:
