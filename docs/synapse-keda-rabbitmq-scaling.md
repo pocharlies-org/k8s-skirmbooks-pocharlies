@@ -100,3 +100,38 @@ Do not remove the proxy while KEDA RabbitMQ ScaledObjects are active; HPAs will 
   verified 2026-08-04. They are not two brokers. There is no separate `sauvage`
   broker any more.
 - Single-action queue triggers should also use `useRegex: "true"` and exact regex queue names. This avoids RabbitMQ exact queue endpoint mismatches and keeps behavior consistent across single and multi-action profiles.
+- **The DLQ prefix in this vhost is `dlq.`, NOT `dead.`.** A check written against
+  `dead.adapter.*` matches nothing and reports a clean DLQ no matter what is in it.
+  This produced a false "nothing was dead-lettered" reading during the 2026-08-04
+  verification. Use `rabbitmqctl list_queues -p /synapse name messages | grep '^dlq\.'`.
+- **A worker's queue name is not derivable from its Deployment name.**
+  `skirmbooks-shopify-sii-bridge-poll` consumes `adapter.sii_emitted.invoice.poll`,
+  not `adapter.shopify_sii_bridge.*`. Read `spec.triggers[0].metadata.queueName` off
+  the ScaledObject; publishing to a guessed name returns "published but NOT routed"
+  and the message is silently dropped (the default exchange has no alternate-exchange).
+- To confirm a profile can wake from zero without running real business work, publish
+  `{"__keda_probe__":true}` to its queue. Measured 2026-08-04: the worker scales
+  0 -> 1 and consumes in **46-89 s** (7 profiles, published concurrently). The probe is
+  then rejected as malformed and **lands in that queue's `dlq.`** — that is the correct
+  outcome (nothing is lost), but the probe message must be purged afterwards. Verify it
+  is yours (`count=1`, payload contains `__keda_probe__`) before `purge_queue`.
+
+## Verification script for a scale-to-zero profile
+
+Six points, in order, with command output kept:
+
+1. **Reaches 0**: `kubectl -n skirmshop get deploy skirmbooks-<w>` shows `0/0` after
+   the cooldown.
+2. **The queue survives with no consumer**: `list_queues name durable auto_delete
+   consumers messages` shows `durable=true auto_delete=false consumers=0`.
+3. **Wakes up**: the probe above; record the cold-start time.
+4. **Sleeps again** after `cooldownPeriod`.
+5. **Nothing lost**: `messages_unacknowledged=0`, `dlq.` (see prefix gotcha above) with
+   no unexpected entries, `synapse.unroutable` flat.
+6. **No scaler errors**: `kubectl -n keda logs deploy/keda-operator --since=25m`.
+
+A cheaper per-profile pre-check that needs no publish at all:
+`kubectl -n skirmshop get scaledobject keda-skirmbooks-<w> -o json` — `Ready=True`
+with `Active=False(ScalerNotActive)` means KEDA is successfully reading that queue and
+it is genuinely empty. `Ready=False`, or a metric of `<unknown>`, means the metrics
+path is broken and `minReplicaCount: 0` on that profile would deadlock.

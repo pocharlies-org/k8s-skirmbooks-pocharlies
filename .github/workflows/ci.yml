@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [deploy/prod]
+    branches: [main]
   push:
-    branches: [deploy/prod]
+    branches: [main]
     tags-ignore: ["**"]
 
 concurrency:
