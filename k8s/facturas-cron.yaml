@@ -55,7 +55,7 @@ spec:
             # ni la exclusión journal_lines en PENDING_GASTOS_SQL, por lo que los gastos ya
             # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
             # Imagen ya en prod (skirmbooks-accounting-derived).
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:psd2-always-on-20260630-delta@sha256:96e1bf6aa550d9b447e2e94492354b6f975cd9b1c85b569e4ddae24694164311
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
@@ -120,7 +120,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-weekly
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:weekly-date-20260622@sha256:3a4d354d37c507201ed368b866f77e63ec9b05fade847d94f0e2e6735442d919
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
             env:
             - name: FACTURAS_TENANT
@@ -182,7 +182,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.lan.e-dani.com/homelab/skirmbooks-backend:moreno-reconcile-mailbox-20260713-delta@sha256:2d8ab8a58be4c24e02e3ed8ba39d8ebb18f60f6d90a3f7672635e24a45b5a859
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT

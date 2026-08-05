@@ -318,7 +318,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:dua-iva-soportado-20260731@sha256:1da1b1af60d2992e511de6c383b8f51cda4f239c4e8a169f22d9891ae9676ebb
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "/scripts/sweep.py"]
             env:
             - name: SII_TENANT

@@ -58,7 +58,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: cobros-digest
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:hogar-cobros-20260722-delta@sha256:2db11134ffa57a7bbc206be39270936f2dcbec940beb62744d262fb152862aa6
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.cobros_digest"]
             env:
             # El tenant del hogar se llama `family`, NO `personal`: KNOWN_TENANTS

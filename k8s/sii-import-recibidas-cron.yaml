@@ -143,7 +143,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: publish
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:sii-import-20260626-delta@sha256:04f57710d25f09bac0ecc4e36ac4be3e8f98b1cb300ffda12363e3d528533bb2
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "/scripts/publish.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }

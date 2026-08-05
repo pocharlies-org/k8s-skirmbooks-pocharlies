@@ -37,7 +37,7 @@ spec:
         spec:
           containers:
           - name: cobros-digest
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:hogar-cat-20260722@sha256:9539a067fd58d47b0216e08a994b7025bf65b2b5cf5ae305fc39e2f6130a7bbe
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.cobros_digest"]
             env:
             - name: COBROS_TENANT

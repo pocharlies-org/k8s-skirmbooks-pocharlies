@@ -119,7 +119,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: klarna-sync
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:mp-paypal-20260616-2-delta@sha256:f18ffed7919414aa796515db8065299fed3034a3f0da4820f45a2533f1e2a205
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "/scripts/klarna-sync.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }

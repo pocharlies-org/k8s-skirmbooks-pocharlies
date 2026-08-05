@@ -43,7 +43,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-digest
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:facturas-hogar-20260714-delta@sha256:5c885d5f790f0d3869fc4d76842d026685d8e21bb893ea1e493551a3c3d7e7f5
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805@sha256:395f887bc2077a65253aae0c96326cd0330ccc967bad180209831e7c892e2473
             command: ["python", "-m", "synapse_adapter_banking.facturas_digest"]
             env:
             - name: FACTURAS_TENANT
