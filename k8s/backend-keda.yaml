@@ -875,7 +875,10 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.sii\.reconcile_aeat$
+      # El deployment consume tres acciones (SYNAPSE_COMMAND_ACTIONS) pero el
+      # scaler solo vigilaba reconcile_aeat: un import publicado por el CronJob
+      # se quedaba en su cola sin que nadie levantara el pod (minReplicaCount 0).
+      queueName: ^adapter\.sii\.(reconcile_aeat|import_recibidas|import_emitidas)$
       useRegex: "true"
       activationQueueLength: "1"
       operation: sum

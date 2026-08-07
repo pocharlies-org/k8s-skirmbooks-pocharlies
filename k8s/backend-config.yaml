@@ -123,7 +123,12 @@ data:
     vision_studio:
       enabled: true
       base_url: http://dgx-dashboard-backend.control-nexus.svc.cluster.local:9002
-      hq_timeout_s: 1800
+      # 900 s y no 1800: hasta ahora este bloque era inerte (el código que lo lee
+      # no estaba desplegado). Con el escalado ya vivo, cada espera bloquea al
+      # consumidor que la pide, y vision-deep arranca bajo demanda en DGX2 con
+      # lease de GPU — donde el árbitro puede desalojarlo. 15 min cubren de sobra
+      # un arranque en frío y acotan el atasco si el workload no llega a subir.
+      hq_timeout_s: 900
       hq_poll_s: 5
       confidence_threshold: 0.85
     storage:

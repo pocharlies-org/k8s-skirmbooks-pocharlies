@@ -55,7 +55,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_accounting
         env:
@@ -157,7 +157,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_accounting
         env:
@@ -259,7 +259,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_accounting
         env:
@@ -361,7 +361,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_accounting
         env:
@@ -465,7 +465,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_banking
         env:
@@ -571,7 +571,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_banking
         env:
@@ -677,7 +677,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_banking
         env:
@@ -781,7 +781,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_fiscal_validator
         env:
@@ -885,7 +885,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_fiscal_validator
         env:
@@ -996,7 +996,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_identity
         env:
@@ -1098,7 +1098,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_identity
         env:
@@ -1207,7 +1207,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: identity
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_identity
         env:
@@ -1309,7 +1309,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1444,7 +1444,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1577,7 +1577,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1699,7 +1699,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1821,7 +1821,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1943,7 +1943,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_notifications
         env:
@@ -2045,7 +2045,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_notifications
         env:
@@ -2147,7 +2147,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_payroll
         env:
@@ -2249,7 +2249,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_payroll
         env:
@@ -2351,7 +2351,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: payroll
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_payroll
         env:
@@ -2453,7 +2453,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_reporting
         env:
@@ -2555,7 +2555,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_reporting
         env:
@@ -2657,7 +2657,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_reporting
         env:
@@ -2772,7 +2772,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
@@ -2874,7 +2874,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: shopify-sii-bridge
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_shopify_sii_bridge
         env:
@@ -2976,7 +2976,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3078,7 +3078,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_sii_inbound
         env:
@@ -3180,17 +3180,20 @@ spec:
       - name: harbor-pull
       containers:
       - name: sii-inbound
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_sii_inbound
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_SII_INBOUND_CONFIG
           value: /etc/synapse/adapter-gestoria-sii-inbound.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          # reconcile_aeat (libro nuestro vs AEAT) + import_recibidas (import del
-          # libro REMOTO de la gestoría → gestoria_audit.gestoria_received_ledger).
-          # Ambos consultan ConsultaLRFacturasRecibidas con mTLS → necesitan el cert.
-          value: reconcile_aeat,import_recibidas
+          # reconcile_aeat (libro nuestro vs AEAT) + import_recibidas / import_emitidas
+          # (import de los libros REMOTOS de la gestoría → gestoria_audit.*_ledger).
+          # Los tres consultan AEAT con mTLS → necesitan el cert sii-certificate.
+          # OJO: la variable PRESENTE restringe el binding. Quitar una acción de esta
+          # lista la desbindea activamente (_unbind_legacy_command_actions), así que
+          # aquí solo se añade.
+          value: reconcile_aeat,import_recibidas,import_emitidas
         ports:
         - name: metrics
           containerPort: 9530
@@ -3294,7 +3297,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_tax
         env:
@@ -3404,7 +3407,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_tax
         env:
@@ -3506,7 +3509,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_tax
         env:
@@ -3608,7 +3611,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: tax
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_tax
         env:

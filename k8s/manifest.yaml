@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:caixabank-web-liquidation-20260804@sha256:eca54c449e35c511e6ac681596a97b2a8fc1b8f1c9be339a09e2f245ea9e5a64
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:audit-ocr-20260807@sha256:7d201a42ad271d321513ca0adc121360064154d973432f06391a623614c4aa0f
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

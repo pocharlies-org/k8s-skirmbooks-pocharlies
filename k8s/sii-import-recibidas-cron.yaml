@@ -1,24 +1,30 @@
-# Disparador durable del IMPORT del libro de la gestoría (facturas recibidas
-# registradas en el SII de AEAT) → gestoria_audit.gestoria_received_ledger.
+# Disparador durable del IMPORT de los libros de la gestoría registrados en el SII
+# de AEAT → gestoria_audit.gestoria_received_ledger (recibidas) y
+# gestoria_audit.gestoria_issued_ledger (emitidas).
 #
 # Contexto: skirmbooks es command-driven (sin engine de workflows desplegado).
-# El handler `sii.import_recibidas` consulta ConsultaLRFacturasRecibidas contra
-# AEAT PRODUCCIÓN con el cert de la sociedad (mTLS) y hace UPSERT idempotente del
-# libro REMOTO real (lo que la gestoría ya presentó). Es la baseline de la
-# auditoría comparativa "libro gestoría vs skirmbooks vs banco".
+# Los handlers `sii.import_recibidas` / `sii.import_emitidas` consultan
+# ConsultaLRFacturasRecibidas / ConsultaLRFacturasEmitidas contra AEAT PRODUCCIÓN
+# con el cert de la sociedad (mTLS) y hacen UPSERT idempotente del libro REMOTO
+# real (lo que la gestoría ya presentó). Es la baseline de la auditoría
+# comparativa "libro gestoría vs skirmbooks vs banco". Sin las emitidas el IVA
+# REPERCUTIDO del 303 no se puede contrastar contra Hacienda.
 #
 # Este CronJob publica mensualmente, al broker synapse-rmq (exchange `commands`),
-# el comando del MES ANTERIOR para cada tenant:
-#   routing_key = sii.<tenant>.import_recibidas
-#   plugin      = sii.import_recibidas
+# los comandos del MES ANTERIOR para cada tenant:
+#   routing_key = sii.<tenant>.<accion>   con accion en SII_IMPORT_ACTIONS
+#   plugin      = sii.<accion>
 #   params      = {fiscal_year, period_month}
 # Lo consume el deployment skirmbooks-sii-inbound-reconcile
-# (SYNAPSE_COMMAND_ACTIONS incluye import_recibidas + cert sii-certificate montado).
+# (SYNAPSE_COMMAND_ACTIONS incluye ambos imports + cert sii-certificate montado).
+# Su ScaledObject de KEDA vigila las tres colas: con minReplicaCount 0, si el
+# scaler no mira la cola del import el mensaje se queda ahí sin consumidor.
 #
-# Idempotente por diseño: el UPSERT del handler dedupea por
-# (tenant_id, supplier_nif, invoice_number, invoice_date), así que re-ejecutar
-# el mismo mes solo refresca filas. Reusa la imagen + config + credenciales del
-# adapter sii-inbound (aditivo, no toca los Deployments en marcha).
+# Idempotente por diseño: el UPSERT dedupea por (tenant, supplier_nif, nº, fecha)
+# en recibidas y por (tenant, nº, fecha) en emitidas (en emitidas el emisor somos
+# siempre nosotros, y una factura a consumidor final no lleva NIF de cliente), así
+# que re-ejecutar el mismo mes solo refresca filas. Reusa la imagen + config +
+# credenciales del adapter sii-inbound (aditivo, no toca los Deployments vivos).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,12 +32,15 @@ metadata:
   namespace: skirmshop
 data:
   publish.py: |
-    """Publica sii.<tenant>.import_recibidas {fiscal_year, period_month} del mes anterior."""
+    """Publica sii.<tenant>.<accion> {fiscal_year, period_month} del mes anterior."""
     import asyncio, json, os, uuid, datetime
     import yaml, asyncpg, aio_pika
 
     CFG = "/etc/synapse/adapter-gestoria-sii-inbound.yaml"
     CREDS = "/etc/synapse/credentials"
+    # Override por env para un backfill selectivo (p.ej. solo emitidas).
+    ACTIONS = [a.strip() for a in os.getenv(
+        "SII_IMPORT_ACTIONS", "import_recibidas,import_emitidas").split(",") if a.strip()]
 
     def _read(path):
         with open(path) as f:
@@ -75,34 +84,36 @@ data:
             tenants = {"skirmshop"}
 
         fiscal_year, period_month = _prev_month()
-        print(f"[sii-import] tenants={sorted(tenants)} fiscal_year={fiscal_year} period_month={period_month}", flush=True)
+        print(f"[sii-import] tenants={sorted(tenants)} acciones={ACTIONS} "
+              f"fiscal_year={fiscal_year} period_month={period_month}", flush=True)
 
         rmq = await aio_pika.connect_robust(amqp_url)
         ch = await rmq.channel(publisher_confirms=True)
         ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
-        published = 0
+        published = {}
         for t in sorted(tenants):
-            msg_id = uuid.uuid4().hex
-            body = json.dumps({
-                "workflow_instance_id": str(uuid.uuid4()),
-                "step_id": msg_id,
-                "plugin": "sii.import_recibidas",
-                "params": {"fiscal_year": fiscal_year, "period_month": period_month},
-                "attempt": 1,
-                "fire_and_forget": True,
-            }).encode()
-            await ex.publish(
-                aio_pika.Message(
-                    body=body, content_type="application/json",
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                    message_id=msg_id,
-                    headers={"tenant_id": t, "source": "sii-import-recibidas-cron", "fire_and_forget": "true"},
-                ),
-                routing_key=f"sii.{t}.import_recibidas",
-            )
-            published += 1
+            for action in ACTIONS:
+                msg_id = uuid.uuid4().hex
+                body = json.dumps({
+                    "workflow_instance_id": str(uuid.uuid4()),
+                    "step_id": msg_id,
+                    "plugin": f"sii.{action}",
+                    "params": {"fiscal_year": fiscal_year, "period_month": period_month},
+                    "attempt": 1,
+                    "fire_and_forget": True,
+                }).encode()
+                await ex.publish(
+                    aio_pika.Message(
+                        body=body, content_type="application/json",
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                        message_id=msg_id,
+                        headers={"tenant_id": t, "source": "sii-import-cron", "fire_and_forget": "true"},
+                    ),
+                    routing_key=f"sii.{t}.{action}",
+                )
+                published[action] = published.get(action, 0) + 1
         await rmq.close()
-        print(f"[sii-import] publicados import_recibidas={published}", flush=True)
+        print(f"[sii-import] publicados {published}", flush=True)
 
     if __name__ == "__main__":
         asyncio.run(main())
@@ -143,7 +154,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: publish
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
             command: ["python", "/scripts/publish.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }

@@ -70,7 +70,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: banking
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_banking
         env:
@@ -177,7 +177,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: fiscal-validator
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:unify-20260805-2@sha256:f265d57a8c6ea4a6e08b36c920207aa703ec9b89f6c852f00f109449dac0d36f
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
         args:
         - synapse_adapter_fiscal_validator
         env:
