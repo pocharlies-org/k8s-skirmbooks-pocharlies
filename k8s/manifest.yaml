@@ -184,8 +184,17 @@ spec:
             # LITELLM_API_KEY is injected via envFrom: skirmbooks-ui-secrets.
             - name: LITELLM_BASE
               value: http://litellm.litellm.svc.cluster.local:4000/v1
+            # `tooling` y no `qwen36-35b` (2026-08-10). Los dos apuntan HOY al mismo
+            # sitio, pero `qwen36-35b` es un nombre de MODELO servido por quien sea el
+            # residente de turno -- ahora DeepSeek-V4-Flash -- y esos nombres van a
+            # quedar restringidos al backend Qwen real. `tooling` es el nombre de
+            # CAPACIDAD: el residente, sea cual sea, con degradado a `dense`.
+            #
+            # Esto NO necesita modelo multimodal: pese al nombre, la llamada manda el
+            # texto ya extraido del PDF (ocr.server.ts) y pide JSON con esquema
+            # estricto. El OCR de verdad pasa antes.
             - name: LITELLM_OCR_MODEL
-              value: qwen36-35b
+              value: tooling
           envFrom:
             - secretRef:
                 name: skirmbooks-ui-secrets
