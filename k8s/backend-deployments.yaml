@@ -1309,7 +1309,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:dispatch-multiaccount-20260813@sha256:6c645f85b9d51faf891e8ec1731ba115a09b23984587afda4a3f27f9a1dd6bf6
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:supplier-match-20260814@sha256:48157a8bb7b302e23812733feaaa0a217b9a938378fcc7e4844af38740392274
         args:
         - synapse_adapter_invoicing
         env:
