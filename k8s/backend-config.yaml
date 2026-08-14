@@ -270,12 +270,18 @@ data:
     rabbitmq:
       url: amqp://synapse_adapter_gestoria_tax@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
     aeat:
-      # Fase C: 303 por cable contra AEAT PRODUCCIÓN (environment prod => www1).
+      # Fase C: 303 por cable contra AEAT PRODUCCIÓN (environment != test => www1).
       # Cert sii-certificate verificado vs PROD (handshake mTLS OK 2026-06-24).
       # NO hay auto-submit: la presentación real es manual (UI, draft approved +
       # botón "Presentar" con confirm). ServValiDos pre-valida cada F01.
       # SII libros registro sigue en PRE (skirmbooks-sii-inbound-config) — Talenom.
-      environment: prod
+      #
+      # 14-08-2026: era "prod" y modelo.submit reventaba SIEMPRE al insertar en
+      # gestoria_tax.modelo_submissions — su CHECK solo acepta 'test'|'production'.
+      # Fallaba antes de llamar a la AEAT, así que nunca se presentó nada por cable
+      # y nadie lo notó porque la presentación se venía haciendo a mano.
+      # El endpoint no cambia: solo environment == "test" va a PRE (prewww1).
+      environment: production
       request_timeout_s: 180.0
       modelo_modes:
         "303": wire
