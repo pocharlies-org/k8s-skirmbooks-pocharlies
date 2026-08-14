@@ -1444,7 +1444,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ups-protected-invoices-20260814@sha256:8ed0922aa80fc976de345b0e17138923ccf2a236face674a3cc1b2b3979ca031
         args:
         - synapse_adapter_invoicing
         env:
@@ -1508,9 +1508,14 @@ spec:
           - key: adapter-gestoria-invoicing.yaml
             path: adapter-gestoria-invoicing.yaml
       - name: credentials
-        secret:
-          secretName: skirmbooks-backend-secrets
+        projected:
           defaultMode: 292
+          sources:
+            - secret:
+                name: skirmbooks-backend-secrets
+            - secret:
+                name: skirmbooks-provider-credentials
+                optional: true
       - name: gmail-sa
         secret:
           secretName: picker-secrets

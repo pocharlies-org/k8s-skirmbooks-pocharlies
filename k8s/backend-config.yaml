@@ -151,6 +151,9 @@ data:
       mailbox: info@e-dani.com
       mailboxes:
         moreno: me@e-dani.com
+      attachment_password_credentials:
+        skirmshop:
+        - invoices.ups.password
     orphan_request:
       timeout_days: 14
     docintake_gate:
