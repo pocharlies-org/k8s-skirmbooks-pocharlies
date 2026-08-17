@@ -127,9 +127,23 @@ metadata:
     app: skirmbooks-sii-import-recibidas
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  # Día 10 de cada mes a las 04:00 UTC: el libro SII del mes anterior ya está
-  # presentado/asentado por la gestoría (plazo SII = 4 días hábiles).
-  schedule: "0 4 10 * *"
+  # Días 20 y 26 a las 04:00 UTC. Antes era el día 10, con el razonamiento de que
+  # "el libro del mes anterior ya está presentado (plazo SII = 4 días hábiles)".
+  # Ese razonamiento es el plazo LEGAL, no lo que hace la gestoría: presenta a
+  # mediados de mes. Medido el 17-08-2026 contra AEAT: el libro de junio se
+  # presentó el 15-07 16:17 y el segundo lote de mayo el 15-06 16:40. O sea que
+  # el día 10 el libro AÚN NO EXISTE, la consulta devuelve `SinDatos` y el import
+  # inserta cero.
+  #
+  # Y no falla: el Job sale `Complete` porque el publish y el handler hacen su
+  # trabajo — `sii_import_recibidas_done aeat_count=0 inserted=0`. Con eso este
+  # CronJob no importó NADA desde que se creó (26-06-2026): junio y julio 2026 se
+  # quedaron fuera del ledger y solo aparecieron al lanzarlo a mano.
+  #
+  # Dos disparos porque uno solo vuelve a ser frágil si algún mes se presenta más
+  # tarde. Es seguro repetir: el handler hace UPSERT e informa
+  # `inserted/updated/skipped` (idempotencia verificada con junio 2026).
+  schedule: "0 4 20,26 * *"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 600
   successfulJobsHistoryLimit: 3
