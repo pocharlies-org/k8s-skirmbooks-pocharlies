@@ -157,7 +157,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:guard-ocr-isp-doctype-20260818@sha256:a68e7cb5a78aa1aff92a1ed10276e32ff3cdc1597388d55cbeea28b80514a459
         args:
         - synapse_adapter_accounting
         env:
@@ -1444,7 +1444,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ups-protected-invoices-20260814@sha256:8ed0922aa80fc976de345b0e17138923ccf2a236face674a3cc1b2b3979ca031
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:guard-ocr-isp-doctype-20260818@sha256:a68e7cb5a78aa1aff92a1ed10276e32ff3cdc1597388d55cbeea28b80514a459
         args:
         - synapse_adapter_invoicing
         env:
