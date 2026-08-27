@@ -167,6 +167,35 @@ data:
       timeout_s: 60.0
       date_window_days: 5
       max_decompressed_bytes: 52428800
+    # Amazon Business (F1 del framework Invoice Providers) — kill-switch GLOBAL
+    # del proveedor. Sigue en OFF a propósito: el acceso a la AB API está
+    # aprobado por Amazon (hilo con ab-api-access-approvals, 19-08-2026) pero
+    # todavía NO hay app client ni refresh token LWA, así que no hay nada que
+    # sembrar en `providers.amazon.<account_key>.lwa_*`. Sin bloque, el default
+    # de AmazonConfig ya es enabled=false; se escribe explícito para que los
+    # knobs sean visibles y activar sea UN flip, no redescubrir la config.
+    #
+    # Procedimiento completo (alta en SPP, DRAF, seed en Vault, alta de la
+    # cuenta y verificación): docs/AMAZON_BUSINESS_API_SETUP.md del repo de
+    # código (skirmbooks-gestoria-src).
+    #
+    # Los valores marcados [VERIFY-LIVE] son asunciones tomadas SIN token real:
+    # hay que confirmarlos contra la primera llamada viva antes de fiarse de un
+    # sync vacío (un 404 por host/marketplace equivocado se parece mucho a "no
+    # hay facturas"). marketplace_ids A1RKKUPIHCS9HS = Amazon.es.
+    amazon:
+      enabled: false
+      api_host: https://eu.business-api.amazon.com
+      region: eu
+      marketplace_ids:
+      - A1RKKUPIHCS9HS
+      auth_header_name: x-amz-access-token
+      use_sigv4: false
+      timeout_s: 60.0
+      poll_interval_s: 3.0
+      max_poll_attempts: 20
+      date_window_days: 5
+      max_decompressed_bytes: 52428800
 ---
 apiVersion: v1
 kind: ConfigMap
