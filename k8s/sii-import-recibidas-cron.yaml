@@ -71,15 +71,27 @@ data:
         amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
         tenants = set(cfg.get("tenants") or [])
 
-        # discovery best-effort (cubre empresas añadidas tras el config)
-        conn = await asyncpg.connect(dsn)
+        # Discovery best-effort. OJO: gestoria_identity.tenants tiene RLS con FORCE
+        # (policy tenants_select_scoped) y este rol no fija ningun app.* GUC, asi que
+        # HOY devuelve CERO filas: quien manda de verdad es la lista `tenants` del
+        # ConfigMap. Se conserva para el dia que se relaje la policy, pero el connect
+        # va DENTRO del try y con timeout: el 26-08-2026 el `asyncpg.connect` estaba
+        # fuera y un cuelgue de postgres-shared-rw (el `-rw` ha cambiado de primario
+        # varias veces, timeline 48) tumbo el Job entero -> BackoffLimitExceeded y
+        # cero comandos publicados. El publish NO necesita la base de datos.
+        conn = None
         try:
+            conn = await asyncpg.connect(dsn, timeout=10)
             for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
                 tenants.add(r["tenant_id"])
         except Exception as e:
             print(f"[sii-import] tenant discovery skipped: {e}", flush=True)
         finally:
-            await conn.close()
+            if conn is not None:
+                try:
+                    await conn.close()
+                except Exception:
+                    pass
         if not tenants:
             tenants = {"skirmshop"}
 
@@ -145,13 +157,20 @@ spec:
   # `inserted/updated/skipped` (idempotencia verificada con junio 2026).
   schedule: "0 4 20,26 * *"
   concurrencyPolicy: Forbid
-  startingDeadlineSeconds: 600
+  # Dispara solo 2 veces al mes: con 600 s, un hipo de 10 min del controlador se
+  # come el disparo sin dejar rastro y hay que esperar al siguiente (6 dias).
+  startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 300
-      backoffLimit: 1
+      # El publisher tarda ~19 s en condiciones normales, pero el 10-08-2026 el mismo
+      # spec tardo 2m34s (154 s) por un connect lento: 300 s dejaba poquisimo margen.
+      # activeDeadlineSeconds cuenta desde el arranque del Job SUMANDO reintentos, no
+      # por pod, asi que subir solo backoffLimit cambiaria BackoffLimitExceeded por
+      # DeadlineExceeded. Suben los dos juntos.
+      activeDeadlineSeconds: 900
+      backoffLimit: 3
       template:
         metadata:
           labels:
