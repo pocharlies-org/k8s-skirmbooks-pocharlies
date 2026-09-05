@@ -51,14 +51,17 @@ data:
 
         # Inventario = SINGLE-TENANT skirmshop. NO se hace discovery ni fan-out a
         # otros tenants. Aqui NO se conecta a Postgres: el connect que habia (solo
-        # para "validar credenciales/red", sin ninguna query) no protegia nada
-        # funcional y era el mismo patron que en 53d37cb (#13) se llevo por delante
-        # el cron hermano skirmbooks-sii-import-recibidas el 26-08-2026 cuando
-        # postgres-shared-rw tardo en responder (BackoffLimitExceeded, sin
-        # try/except ni timeout). Alli #13 lo envolvio porque la query de discovery
-        # se conserva para cuando se relaje una RLS; aqui no hay ninguna query que
-        # conservar, asi que se borra en vez de envolverse: el publish no necesita
-        # la base de datos para nada.
+        # para "validar credenciales/red") no tenia ninguna query detras y con
+        # `tenant` hardcodeado no hace falta discovery, asi que es una dependencia
+        # de red que el publish no necesita para nada. Mismo patron de connect
+        # inutil que 53d37cb (#13) quito del cron hermano
+        # skirmbooks-sii-import-recibidas -- alli se conservo envuelto (try/except
+        # + timeout) porque protegia una query de discovery real que se guarda
+        # para cuando se relaje una RLS; aqui no hay query que conservar, asi que
+        # se borra en vez de envolverse. (No es una prueba de que este connect
+        # causara el BackoffLimitExceeded del 2026-09-03: la ventana de Postgres
+        # aparecio sana y los 71s del Job no encajan con el timeout de ~60s del
+        # connect colgado del cron hermano.)
         tenant = "skirmshop"
 
         print(f"[inventory-snapshot] tenant={tenant} params={{}} (handler -> previous-month-end)", flush=True)
