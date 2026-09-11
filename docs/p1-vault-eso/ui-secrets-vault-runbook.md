@@ -1,9 +1,16 @@
-# skirmbooks-ui-secrets → Vault/ESO — Runbook (DR + rotation + safe apply)
+# skirmbooks-ui-secrets → 1Password/ESO — Runbook (DR + rotation + safe apply)
 
-Phase **P1**: migrate the k8s Secret `skirmshop/skirmbooks-ui-secrets` (the
-manual Opaque secret holding **SESSION_SECRET**, the HMAC root of every session +
-the signed `sb_tenant` cookie) from a hand-applied secret to a Vault-backed
-ExternalSecret — **zero downtime, zero key loss**.
+Phase **P1** (2026-06-21, Vault era): migrate the k8s Secret
+`skirmshop/skirmbooks-ui-secrets` (the manual Opaque secret holding
+**SESSION_SECRET**, the HMAC root of every session + the signed `sb_tenant`
+cookie) from a hand-applied secret to an ESO-managed ExternalSecret — **zero
+downtime, zero key loss**.
+
+**SC-496 (2026-09)**: the ExternalSecret source is now the 1Password item
+`skirmshop-skirmbooks-ui` (vault `k8s-pocharlies`); item field = former Vault
+property. The Vault-era SAFE APPLY PLAN and the validation evidence below are
+kept as a dated historical record; the live seed / rotation / DR mechanics use
+`op`.
 
 The skirmbooks-ui Deployment consumes this secret via `envFrom.secretRef`
 (`k8s/manifest.yaml`). With `AUTH_ENABLED=true` the pod is **fail-closed (C3)**:
@@ -17,24 +24,25 @@ the secret lose a key.
 | k8s Secret | `skirmshop/skirmbooks-ui-secrets` (Opaque, MANUAL, no ownerRef) |
 | Keys (5) | `SESSION_SECRET`, `LITELLM_API_KEY`, `SYNAPSE_AMQP_URL`, `TINK_CLIENT_ID`, `TINK_CLIENT_SECRET` |
 | Consumer | Deployment `skirmshop/skirmbooks-ui` → `envFrom.secretRef` |
-| ClusterSecretStore | `vault-backend` (Vault KV v2, mount `secret`, `http://vault.vault.svc:8200`, k8s-auth role `external-secrets`), ReadWrite, Valid |
-| Vault path (write side) | `skirmshop/skirmbooks-ui` |
-| Vault path (read side) | `secret/skirmshop/skirmbooks-ui` (read does NOT dedupe the mount prefix) |
+| ClusterSecretStore | `onepassword` (since SC-496; was `vault-backend`) |
+| 1Password item (source of truth) | `skirmshop-skirmbooks-ui` (vault `k8s-pocharlies`); item field = former Vault property |
 | Argo app | `argocd/skirmbooks`, source path `k8s`, branch `deploy/prod`, syncPolicy `automated{prune:false, selfHeal:true}` |
 
-### GOTCHA — ESO Vault role is write-scoped (PROVEN)
-A PushSecret to `skirmshop/skirmbooks-ui` **fails with HTTP 403** — the
-`external-secrets` Vault role can write `secret/skirmshop-drive/*` but **not**
-`secret/skirmshop/*`, and cannot DELETE anywhere. Therefore:
-- **Seeding Vault is break-glass** (`vault kv put` with a privileged token), not a
-  GitOps PushSecret. See `seed-ui-secrets-to-vault.sh`.
+### GOTCHA (Vault era, proven 2026-06-21 — historical) — ESO Vault role was write-scoped
+A PushSecret to `skirmshop/skirmbooks-ui` **failed with HTTP 403** — the
+`external-secrets` Vault role could write `secret/skirmshop-drive/*` but **not**
+`secret/skirmshop/*`, and could not DELETE anywhere. Therefore:
+- **Seeding was break-glass** (`vault kv put` with a privileged token), not a
+  GitOps PushSecret. Since SC-496 seeding is the `op` CLI on a signed-in
+  session — the same property holds for 1Password: ESO only reads. See
+  `seed-ui-secrets-to-1password.sh`.
 - **Do NOT** widen the ESO write policy to `skirmshop/*` just to push — that would
   let ESO overwrite the entire skirmshop subtree (incl. the 30+ backend keys in
   `secret/skirmshop/skirmbooks`). Security regression — rejected.
 - The **read** of `secret/skirmshop/skirmbooks-ui` IS permitted (tested: not-found,
   no 403). So the ExternalSecret read side works once Vault is seeded.
 
-### GOTCHA — KV mount prefix (project_skirmshop_drive_s3_eso_push)
+### GOTCHA (Vault era — historical) — KV mount prefix (project_skirmshop_drive_s3_eso_push)
 On **write**: path is `skirmshop/skirmbooks-ui` (no `secret/`).
 On **read**: key is `secret/skirmshop/skirmbooks-ui` (with `secret/`).
 Same asymmetry as the working `skirmshop-drive` pair.
@@ -45,8 +53,10 @@ Same asymmetry as the working `skirmshop-drive` pair.
 
 - `k8s/ui-secrets-external.yaml` — ExternalSecret `skirmbooks-ui-secrets`
   (`creationPolicy: Owner`, `deletionPolicy: Retain`, `dataFrom.extract` of the
-  full path → publishes ALL keys found in Vault → zero-drop adoption).
-- `docs/seed-ui-secrets-to-vault.sh` — break-glass seed/verify script.
+  item → publishes ALL fields found in the 1Password item → zero-drop adoption).
+- `docs/p1-vault-eso/seed-ui-secrets-to-1password.sh` — seed/verify script:
+  reads the live k8s Secret and writes the 1Password item via `op` (values via
+  an item JSON template on stdin, never on argv).
 
 `creationPolicy: Owner` makes ESO **adopt** the existing same-named Secret
 (patch-in-place, add ownerReference=ExternalSecret); it does not delete+recreate.
@@ -54,7 +64,7 @@ Same asymmetry as the working `skirmshop-drive` pair.
 
 ---
 
-## SAFE APPLY PLAN (PMO executes, in order)
+## SAFE APPLY PLAN (P1, Vault era — dated historical record; live mechanics: Seed / Rotation / DR below)
 
 > Pre-req: `export KUBECONFIG=$HOME/.kube/config`. Backup of the live secret is at
 > `/home/dibanez/k8s/.skirmbooks-ui-secrets.backup.<ts>.yaml` (chmod 600).
@@ -141,26 +151,31 @@ Secret; the apply just re-asserts the manual values. UI is unaffected throughout
 
 ---
 
-## Rotation
+## Rotation (1Password, since SC-496)
+
+Source of truth: item `skirmshop-skirmbooks-ui` (vault `k8s-pocharlies`).
+`op item edit` merges the fields given — it never drops siblings (same rule as
+the old `vault kv patch`: never a full replace). For real keys, prefer piping
+an item JSON template (`cat item.json | op item edit skirmshop-skirmbooks-ui
+--vault k8s-pocharlies`) to keep values off argv, as the seed script does.
 
 ### Rotate any non-session key (LITELLM_API_KEY, SYNAPSE_AMQP_URL, TINK_*)
-1. Break-glass token → `vault kv patch -mount=secret skirmshop/skirmbooks-ui KEY=<new>`
-   (patch, not put, to avoid dropping siblings).
-2. ESO refreshes within `refreshInterval: 1h` (or force:
+1. `op item edit skirmshop-skirmbooks-ui --vault k8s-pocharlies KEY=<new>`
+   (in x86: skill `op-via-mac`).
+2. ESO refreshes within `refreshInterval: 6h` (or force:
    `kubectl annotate es skirmbooks-ui-secrets force-sync="$(date +%s)" --overwrite`).
 3. Roll the UI to pick up the new env: `kubectl rollout restart deploy/skirmbooks-ui`.
-4. Revoke the token.
 
 ### Rotate SESSION_SECRET (logs everyone out — coordinate with app lane)
 SESSION_SECRET is the HMAC root; changing it invalidates all sessions and the
 signed `sb_tenant` cookie. **Dual-secret window** (requires app support for a
 secondary verification key, e.g. `SESSION_SECRET_PREVIOUS`):
 1. Generate new: `openssl rand -hex 32`.
-2. `vault kv patch -mount=secret skirmshop/skirmbooks-ui SESSION_SECRET_PREVIOUS=<current> SESSION_SECRET=<new>`.
+2. `op item edit skirmshop-skirmbooks-ui --vault k8s-pocharlies SESSION_SECRET_PREVIOUS=<current> SESSION_SECRET=<new>`.
 3. Add `SESSION_SECRET_PREVIOUS` to the ExternalSecret (extract already pulls all
-   keys) and to the app's verifier so old cookies still validate.
+   fields) and to the app's verifier so old cookies still validate.
 4. Roll the UI. Both keys valid during the window.
-5. After max cookie TTL, `vault kv patch ... SESSION_SECRET_PREVIOUS=` (clear) and
+5. After max cookie TTL, `op item edit skirmshop-skirmbooks-ui --vault k8s-pocharlies SESSION_SECRET_PREVIOUS=` (clear) and
    drop the verifier path; roll again.
 If the app has NO dual-key support yet, a hard rotation just forces a global
 re-login — acceptable only in a maintenance window. **Coordinate with the backend
@@ -170,13 +185,14 @@ lane before rotating SESSION_SECRET.**
 
 ## DR — reseed in a clean namespace / fresh cluster
 
-Pre-req: Vault restored (it is the source of truth post-P1), ESO + the
-`vault-backend` ClusterSecretStore healthy.
+Pre-req: the 1Password item `skirmshop-skirmbooks-ui` is present (it is the
+source of truth since SC-496), ESO + the `onepassword` ClusterSecretStore
+healthy.
 
 1. Ensure namespace exists: `kubectl create ns skirmshop` (idempotent).
 2. Apply the ExternalSecret: `kubectl apply -f k8s/ui-secrets-external.yaml`
    (or let Argo sync `deploy/prod`).
-3. ESO reads `secret/skirmshop/skirmbooks-ui` and creates the Secret from scratch
+3. ESO reads the item and creates the Secret from scratch
    (`creationPolicy: Owner` creates if absent). Verify:
    ```
    kubectl -n skirmshop get secret skirmbooks-ui-secrets \
@@ -186,11 +202,11 @@ Pre-req: Vault restored (it is the source of truth post-P1), ESO + the
    ```
 4. The UI Deployment then starts (envFrom finds all 5 keys).
 
-If Vault itself was lost, restore Vault from its own backup first; if the
-`skirmbooks-ui` path is gone but the live secret survives, re-run
-`seed-ui-secrets-to-vault.sh` to re-seed from the live secret.
+If the 1Password item was lost, restore it from 1Password's own history /
+backup first; if the item is gone but the live secret survives, re-run
+`seed-ui-secrets-to-1password.sh` to re-seed from the live secret.
 
-Validation evidence (2026-06-21, throwaway namespaces, live secret never touched):
+Validation evidence (P1, Vault era, 2026-06-21, throwaway namespaces, live secret never touched):
 - **Adoption + full-key publish**: an ExternalSecret `creationPolicy: Owner` +
   `dataFrom.extract: secret/skirmshop/skirmbooks` was applied over a pre-existing
   MANUAL secret of the same name. Result: ownerRef became
