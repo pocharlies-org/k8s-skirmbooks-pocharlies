@@ -9,7 +9,7 @@
 | Archivo | Objeto | Estado |
 |---|---|---|
 | `k8s/billing-deployment.yaml` | Deployment + Service `skirmbooks-billing` (ns `skirmshop`) | dry-run server OK; imagen=PLACEHOLDER |
-| `k8s/billing-secrets-external.yaml` | ExternalSecret `skirmbooks-billing-secrets` ← Vault | dry-run server OK; path Vault NO existe aún |
+| `k8s/billing-secrets-external.yaml` | ExternalSecret `skirmbooks-billing-secrets` ← 1Password | dry-run server OK; item 1Password NO existe aún |
 | `k8s/billing-webhook-ingress.yaml` | IngressRoute público SOLO `/billing/webhook` (traefik-edge) | dry-run server OK |
 
 Contrato HTTP del servicio (lane backend): `GET /healthz`, `POST /billing/checkout`,
@@ -47,23 +47,30 @@ claves es break-glass `ALTER ROLE ... PASSWORD`, no editar la cluster spec.
    kubectl -n databases exec -ti postgres-shared-3 -- \
      psql -d skirmbooks -c "ALTER ROLE gestoria_billing_app PASSWORD '$PW';"
    ```
-3. Componer el DSN y meterlo en el Vault path de billing (paso 2 de §2):
-   `postgresql://gestoria_billing_app:$PW@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks`
-   (clave `GESTORIA_DB_URL` del secret de billing).
+3. Componer el DSN y meterlo en el item de 1Password de billing (campo
+   `GESTORIA_DB_URL`, paso 2 de §2):
+   `postgresql://gestoria_billing_app:$PW@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks`.
 
 > Durabilidad opcional (recomendado tras validar): añadir `gestoria_billing_app` al
 > `spec.managed.roles` del repo `postgres-shared` con `passwordSecret` apuntando a un
 > Secret k8s, para que CNPG lo reconcilie declarativamente. Coordinar con el owner de
 > ese repo. No bloquea el modo test.
 
-## 2. Sembrar claves Stripe (break-glass Vault → ESO)
-Path: `secret/skirmshop/skirmbooks-billing` (KV v2). El role ESO `vault-backend`
-puede LEERLO pero NO escribirlo (403, probado) → el seed es break-glass con un token
-con write, igual que `secret/skirmshop/skirmbooks-ui` (project_vault_break_glass_eso).
+## 2. Sembrar claves Stripe (1Password → ESO)
+Item: `skirmshop-skirmbooks-billing` (vault `k8s-pocharlies`) — el ExternalSecret
+lo lee vía `ClusterSecretStore/onepassword` (patrón SC-496, igual que
+`skirmshop-skirmbooks-ui`). ESO solo lee (no hay write path al vault, como ya
+ocurría con el role `vault-backend` y `secret/skirmshop/*`) → el seed es con el
+CLI `op` en sesión firmada (en x86, skill `op-via-mac`).
+
+⚠ **Pendiente (SC-498)**: `secret/skirmshop/skirmbooks-billing` nunca llegó a
+poblarse en Vault y la ruta NO está en `mapping.tsv` — no hay nada que migrar,
+el item se CREA en la activación. Crear el item es responsabilidad de quien
+despliegue el servicio (paso 4 del orden de activación).
 
 Claves a sembrar (cuenta Stripe **SaaS**, modo **test** — DISTINTAS del Stripe bancario):
 ```sh
-vault kv put secret/skirmshop/skirmbooks-billing \
+op item create --vault k8s-pocharlies --title skirmshop-skirmbooks-billing \
   STRIPE_SECRET_KEY="sk_test_..." \
   STRIPE_PUBLISHABLE_KEY="pk_test_..." \
   STRIPE_WEBHOOK_SIGNING_SECRET="whsec_..." \
@@ -73,6 +80,9 @@ vault kv put secret/skirmshop/skirmbooks-billing \
   STRIPE_PRICE_PRO="price_..." \
   GESTORIA_DB_URL="postgresql://gestoria_billing_app:<pw>@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks"
 ```
+Con claves reales, mejor tubería de item JSON template para no dejar los
+valores en argv (`cat item.json | op item create --vault k8s-pocharlies -`) —
+patrón probado en `docs/p1-vault-eso/seed-ui-secrets-to-1password.sh`.
 Tras sembrar, forzar reconcile del ES y reiniciar el pod (envFrom se lee al
 arrancar el contenedor):
 ```sh
@@ -143,18 +153,20 @@ worktree), gemelo del job `ui` pero con `services/billing/Dockerfile`:
 1. Lane backend: `services/billing` + Dockerfile + fail-safe 503 sin claves.
 2. CI: job `billing` → imagen en harbor.lan, anotar digest.
 3. Aplicar 0054 a DB `skirmbooks`; setear password del role (break-glass).
-4. Sembrar `secret/skirmshop/skirmbooks-billing` (claves test + GESTORIA_DB_URL).
+4. Sembrar el item 1Password `skirmshop-skirmbooks-billing` (crear con `op`:
+   claves test + GESTORIA_DB_URL; añadir la ruta a mapping.tsv).
 5. Bump `image:` con digest; aplicar los 3 manifests (vía ArgoCD).
 6. Crear el endpoint webhook en el dashboard Stripe SaaS apuntando a
    `https://skirmbooks.e-dani.com/billing/webhook`; el `whsec_*` que da Stripe va al
-   Vault path (paso 4) → rollout restart.
+   item de 1Password (paso 4) → rollout restart.
 7. Smoke: `GET /healthz`=200; webhook test desde Stripe CLI → firma verificada.
 
 ## Riesgos / blockers operativos residuales
 - **[blocker] imagen inexistente**: no hay `services/billing` ni Dockerfile → no se
   puede construir ni desplegar hoy. El manifest lleva tag placeholder.
-- **[blocker] path Vault vacío**: `secret/skirmshop/skirmbooks-billing` no existe →
-  el ES queda NotReady hasta el seed break-glass del usuario (esperado). El pod
+- **[blocker] item 1Password inexistente**: `skirmshop-skirmbooks-billing` no existe
+  (la ruta nunca se pobló en Vault ni está en mapping.tsv) →
+  el ES queda NotReady hasta el seed con `op` de quien active (esperado). El pod
   arranca igual (`secretRef optional: true`).
 - **[blocker] password del role**: `gestoria_billing_app` sin password hasta el
   ALTER ROLE break-glass; el DSN no autentica hasta entonces.
