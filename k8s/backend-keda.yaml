@@ -558,7 +558,7 @@ spec:
       protocol: http
       mode: QueueLength
       value: '1'
-      queueName: ^adapter\.notifications\.(deh\.poll|deh\.open)$
+      queueName: ^adapter\.notifications\.(deh\.poll|deh\.open|deh\.ingest_email|deh\.ack|deh\.attach)$
       useRegex: 'true'
       activationQueueLength: '1'
       operation: sum
