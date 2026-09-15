@@ -109,6 +109,8 @@ spec:
             - name: config
               mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
               subPath: adapter-gestoria-notifications.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
           volumes:
           - name: script
             configMap:
@@ -116,6 +118,10 @@ spec:
           - name: config
             configMap:
               name: skirmbooks-notifications-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
+              defaultMode: 292
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -163,6 +169,8 @@ spec:
             - name: config
               mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
               subPath: adapter-gestoria-notifications.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
           volumes:
           - name: script
             configMap:
@@ -170,3 +178,7 @@ spec:
           - name: config
             configMap:
               name: skirmbooks-notifications-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
+              defaultMode: 292
