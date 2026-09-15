@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:bancos-en-paquete-20260818@sha256:0ddcff95e9f1d590c6dc5d48a6510c25bcff98f47ea9a3b7eda018556313b32e
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui:deh-20260915@sha256:624f46d710f7db350593359c15e79fc491de80acc1ecedccaadde868bb46d439
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
