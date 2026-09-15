@@ -174,11 +174,42 @@ metadata:
   name: skirmbooks-notifications-config
   namespace: skirmshop
 data:
-  adapter-gestoria-notifications.yaml: "service: synapse-adapter-gestoria-notifications\n\
-    logging:\n  level: INFO\n  format: json\nmetrics:\n  enabled: true\n  port: 9528\n\
-    database:\n  dsn: postgresql://gestoria_notifications_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
-    \  min_size: 1\n  max_size: 4\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_notifications@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
-    deh:\n  enabled: false\ntenants:\n- skirmshop\n"
+  # Vigilancia DEHú activa (plan 14-09-2026): el adapter lee los avisos de
+  # cortesía de correo.gob.es de los buzones vigilados y NUNCA accede a DEHú
+  # (no hay endpoint ni certificado — comparecer es manual). alphalink en
+  # tenants exige el KNOWN_TENANTS de synapse-main desplegado ANTES.
+  adapter-gestoria-notifications.yaml: |
+    service: synapse-adapter-gestoria-notifications
+    logging:
+      level: INFO
+      format: json
+    metrics:
+      enabled: true
+      port: 9528
+    database:
+      dsn: postgresql://gestoria_notifications_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+      min_size: 1
+      max_size: 4
+    rabbitmq:
+      url: amqp://synapse_adapter_gestoria_notifications@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
+    deh:
+      enabled: true
+      watched_mailboxes:
+      - info@skirmshop.es
+      lookback_days: 4
+      gmail_sa_path: /etc/synapse/gmail/sa.json
+      sender_mailbox: info@e-dani.com
+      sender_display: "Skirmbooks · gestoría <info@e-dani.com>"
+      storage:
+        endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        bucket: skirmshop-drive
+        prefix: skirmbooks/dehu
+        secure: false
+    tenants:
+    - skirmshop
+    - moreno
+    - family
+    - alphalink
 ---
 apiVersion: v1
 kind: ConfigMap
