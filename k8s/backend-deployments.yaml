@@ -1948,7 +1948,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:deh-20260915@sha256:34e723f9d4f872954a60a5d2ccefe9fca21f401504be2af91bff10055a9acb1f
         args:
         - synapse_adapter_notifications
         env:
@@ -1966,6 +1966,9 @@ spec:
           readOnly: true
         - name: credentials
           mountPath: /etc/synapse/credentials
+        # SA para el canal email del dispatch real (alert_dispatch).
+        - name: gmail-sa
+          mountPath: /etc/synapse/gmail
           readOnly: true
         resources:
           requests:
@@ -1993,6 +1996,13 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
+      - name: gmail-sa
+        secret:
+          secretName: picker-secrets
+          defaultMode: 292
+          items:
+          - key: GA4_CREDENTIALS_JSON
+            path: sa.json
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2050,14 +2060,27 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:deh-20260915@sha256:34e723f9d4f872954a60a5d2ccefe9fca21f401504be2af91bff10055a9acb1f
         args:
         - synapse_adapter_notifications
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_NOTIFICATIONS_CONFIG
           value: /etc/synapse/adapter-gestoria-notifications.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: deh.poll,deh.open
+          # deh.ingest_email: re-ingerir un correo concreto a mano; deh.ack:
+          # el botón de Telegram (workflow skirmshop.gestoria.deh_ack);
+          # deh.attach: archivo explícito del PDF (lo normal lo detecta el poll).
+          value: deh.poll,deh.open,deh.ingest_email,deh.ack,deh.attach
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skirmshop-drive-s3-app
+              key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
           containerPort: 9528
@@ -2068,6 +2091,8 @@ spec:
           readOnly: true
         - name: credentials
           mountPath: /etc/synapse/credentials
+        - name: gmail-sa
+          mountPath: /etc/synapse/gmail
           readOnly: true
         resources:
           requests:
@@ -2095,6 +2120,13 @@ spec:
         secret:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
+      - name: gmail-sa
+        secret:
+          secretName: picker-secrets
+          defaultMode: 292
+          items:
+          - key: GA4_CREDENTIALS_JSON
+            path: sa.json
 ---
 apiVersion: apps/v1
 kind: Deployment
