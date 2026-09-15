@@ -1,5 +1,5 @@
 # Vigilancia DEHú: dos pasadas al día (05:15 y 15:15 UTC ≈ mañana y media
-# tarde peninsular). El job publica UN comando notifications.skirmshop.deh_poll;
+# tarde peninsular). El job publica UN comando notifications.skirmshop.deh.poll;
 # todo lo demás (leer buzones, emparejar NIF, escalar severidades, marcar
 # vencidas, publicar los dispatch) lo hace el adapter en deh_poll — el cron
 # no toca la BD. Patrón = tax-modelo-sweep ("no engine para skirmbooks").
@@ -55,7 +55,7 @@ data:
                 message_id=msg_id,
                 headers={"tenant_id": "skirmshop", "source": "deh-poll-cron"},
             ),
-            routing_key="notifications.skirmshop.deh_poll",
+            routing_key="notifications.skirmshop.deh.poll",
         )
         await rmq.close()
         print(f"[deh-poll] comando publicado ({msg_id})", flush=True)
