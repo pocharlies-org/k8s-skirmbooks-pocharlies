@@ -1970,7 +1970,6 @@ spec:
         - name: gmail-sa
           mountPath: /etc/synapse/gmail
           readOnly: true
-          readOnly: true
         resources:
           requests:
             cpu: 50m
@@ -2094,7 +2093,6 @@ spec:
           mountPath: /etc/synapse/credentials
         - name: gmail-sa
           mountPath: /etc/synapse/gmail
-          readOnly: true
           readOnly: true
         resources:
           requests:
