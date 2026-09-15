@@ -196,7 +196,7 @@ data:
       enabled: true
       watched_mailboxes:
       - info@skirmshop.es
-      lookback_days: 4
+      lookback_days: 12
       gmail_sa_path: /etc/synapse/gmail/sa.json
       sender_mailbox: info@e-dani.com
       sender_display: "Skirmbooks · gestoría <info@e-dani.com>"
