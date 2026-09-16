@@ -1,28 +1,34 @@
-# SKIRM-17 — PreSync hook: aplica las migraciones de skirmbooks-gestoria-src en
-# cada sync de la app `skirmbooks` (D6/D9 del CTO, 16-09-2026).
+# SKIRM-17 — PreSync hook: aplica las migraciones de skirmbooks en cada sync de
+# la app `skirmbooks` (decisión D12 del CTO, 16-09-2026).
 #
-# Mecanismo:
-#   1. initContainer `alpine/git` clona `main` de pocharlies-org/skirmbooks-gestoria-src
-#      (repo PRIVADO → token de solo lectura en el secret `skirmbooks-git-token`,
-#      key `token`, publicado por git-token-external.yaml desde 1Password). El token
-#      viaja en una cabecera AUTHORIZATION configurada en runtime (nunca en argv).
-#   2. El contenedor principal es la MISMA imagen del servidor (CNPG 17.5 = server
-#      17.5 verificado en postgres-shared-3): trae psql, bash, awk y sha256sum, que
-#      es lo que exige scripts/apply-migrations.sh. La imagen del backend NO sirve:
-#      su Dockerfile no instala postgresql-client ni copia scripts/ ni migrations/.
-#   3. El runner aplica TODO lo pendiente contra la base `skirmbooks` en
-#      postgres-shared-rw (service CNPG al primary — el mismo host que usa hoy
-#      GESTORIA_DB_URL), como superuser del secret shared-postgres-superuser
-#      (rol postgres, rolsuper+bypassrls — el preflight RLS del runner lo exige).
-#      Idempotente: salta lo ya registrado en public.schema_migrations.
+# Mecanismo: el Job corre `bash scripts/apply-migrations.sh` desde la imagen
+# `harbor.lan.e-dani.com/homelab/skirmbooks-migrations`, que publica el
+# release.yml de skirmbooks-gestoria-src con el MISMO tag que skirmbooks-ui
+# (base psql 17, WORKDIR /app, contiene migrations/ y scripts/). El esquema
+# queda clavado al tag del código: nunca pueden ir separados. Sin clonado de
+# repo, sin dependencia de GitHub y sin credencial alguna (D12).
+#
+# TAG: invariante del diseño (escrito también en README.md): el tag de
+# `skirmbooks-migrations` y el de `skirmbooks-ui` se mueven en el mismo commit
+# de bump; si se separan, se separan mal. Aquí el tag es el marcador
+# `deh-20260916` — el que hoy lleva skirmbooks-ui en k8s/manifest.yaml — y va
+# SIN digest porque esa imagen aún no existe en Harbor hasta que release.yml la
+# publique. El commit de bump pone tag@digest en las dos líneas `image:` (el
+# digest de la UI y el de migraciones, cada uno del suyo).
+#
+# El runner aplica TODO lo pendiente contra la base `skirmbooks` de
+# postgres-shared-rw (service CNPG → primary, el mismo host que usa hoy
+# GESTORIA_DB_URL), como superuser del secret shared-postgres-superuser
+# (rol postgres, rolsuper+bypassrls — el preflight RLS del runner lo exige).
+# Idempotente: salta lo ya registrado en public.schema_migrations.
 #
 # Consecuencia operativa (deliberada): toda migración mergeada en main de
-# gestoria-src se aplica sola en el siguiente sync, ANTES de que arranque el pod
-# nuevo (esquema antes que código). Un runner que falle bloquea el despliegue
-# entero: el hook queda Failed con el log del Job y el sync no avanza.
-# D11: el Job NO interpreta códigos de salida — 0 = éxito, cualquier otro = fallo.
-# Por eso el runner se arregla antes en skirmbooks-gestoria-src#26 (exit 3 → 0
-# cuando una migración de datos no toca filas). Nada de `|| true` aquí.
+# gestoria-src se aplica sola en el siguiente sync, ANTES de que arranque el
+# pod nuevo (esquema antes que código). Un runner que falle bloquea el
+# despliegue entero: el hook queda Failed con el log del Job y el sync no
+# avanza. D11: el Job NO interpreta códigos de salida — 0 = éxito, cualquier
+# otro = fallo (por eso el runner cambió su exit 3 a 0 en
+# skirmbooks-gestoria-src#26). Nada de `|| true` aquí.
 #
 # El Job NO tiene ttlSecondsAfterFinished: el último Job se conserva para poder
 # leer su log (`kubectl logs -n skirmshop job/skirmbooks-migrations`); el siguiente
@@ -51,7 +57,10 @@ spec:
       restartPolicy: Never
       automountServiceAccountToken: false
       enableServiceLinks: false
-      # Mismo encaje que el Deployment skirmbooks-ui (amd64 fuera de LAN, arista edge).
+      # Mismo pull secret y mismo encaje que el Deployment skirmbooks-ui
+      # (amd64 fuera de LAN, arista edge).
+      imagePullSecrets:
+        - name: harbor-pull
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -70,51 +79,17 @@ spec:
           operator: Equal
           value: edge
           effect: NoSchedule
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 26          # uid del usuario postgres en la imagen CNPG
-        runAsGroup: 26
-        fsGroup: 26            # el emptyDir se comparte init ↔ contenedor
-        seccompProfile: { type: RuntimeDefault }
       volumes:
-        - name: work
-          emptyDir: {}
         - name: tmp
           emptyDir: {}
-      initContainers:
-        - name: clone-migrations
-          image: docker.io/alpine/git:v2.54.0
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              set -e
-              git config --global http."https://github.com/".extraheader \
-                "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64)"
-              git clone --depth 1 https://github.com/pocharlies-org/skirmbooks-gestoria-src /work/repo
-          env:
-            - name: HOME
-              value: /tmp
-            - name: GIT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: skirmbooks-git-token
-                  key: token
-          volumeMounts:
-            - { name: work, mountPath: /work }
-            - { name: tmp, mountPath: /tmp }
-          resources:
-            requests: { cpu: 10m, memory: 32Mi }
-            limits: { cpu: 200m, memory: 128Mi }
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities: { drop: ["ALL"] }
       containers:
         - name: apply-migrations
-          # Servidor real 17.5 (show server_version en postgres-shared-3); imagen
-          # ya usada en el clúster por los propios instances CNPG.
-          image: ghcr.io/cloudnative-pg/postgresql:17.5
-          command: ["/bin/bash", "/work/repo/scripts/apply-migrations.sh"]
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-migrations:deh-20260916
+          imagePullPolicy: IfNotPresent
+          # command explícito aunque la imagen fije ENTRYPOINT (D12): el Job no
+          # depende de cómo el Dockerfile declare la entrada.
+          command: ["bash", "scripts/apply-migrations.sh"]
+          workingDir: /app
           env:
             - name: HOME
               value: /tmp
@@ -123,7 +98,7 @@ spec:
               value: postgres-shared-rw.databases.svc.cluster.local
             - name: PGPORT
               value: "5432"
-            # El runner solo acepta 'skirmbooks' (preflight línea 26; 'skirmshop'
+            # El runner solo acepta 'skirmbooks' (preflight; 'skirmshop'
             # es la base del SII, NO la de gestoría).
             - name: PGDATABASE
               value: skirmbooks
@@ -138,7 +113,6 @@ spec:
                   name: shared-postgres-superuser
                   key: password
           volumeMounts:
-            - { name: work, mountPath: /work }
             - { name: tmp, mountPath: /tmp }
           resources:
             requests: { cpu: 50m, memory: 64Mi }
@@ -147,3 +121,4 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
