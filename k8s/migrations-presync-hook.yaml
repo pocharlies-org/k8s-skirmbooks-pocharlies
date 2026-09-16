@@ -1,0 +1,149 @@
+# SKIRM-17 — PreSync hook: aplica las migraciones de skirmbooks-gestoria-src en
+# cada sync de la app `skirmbooks` (D6/D9 del CTO, 16-09-2026).
+#
+# Mecanismo:
+#   1. initContainer `alpine/git` clona `main` de pocharlies-org/skirmbooks-gestoria-src
+#      (repo PRIVADO → token de solo lectura en el secret `skirmbooks-git-token`,
+#      key `token`, publicado por git-token-external.yaml desde 1Password). El token
+#      viaja en una cabecera AUTHORIZATION configurada en runtime (nunca en argv).
+#   2. El contenedor principal es la MISMA imagen del servidor (CNPG 17.5 = server
+#      17.5 verificado en postgres-shared-3): trae psql, bash, awk y sha256sum, que
+#      es lo que exige scripts/apply-migrations.sh. La imagen del backend NO sirve:
+#      su Dockerfile no instala postgresql-client ni copia scripts/ ni migrations/.
+#   3. El runner aplica TODO lo pendiente contra la base `skirmbooks` en
+#      postgres-shared-rw (service CNPG al primary — el mismo host que usa hoy
+#      GESTORIA_DB_URL), como superuser del secret shared-postgres-superuser
+#      (rol postgres, rolsuper+bypassrls — el preflight RLS del runner lo exige).
+#      Idempotente: salta lo ya registrado en public.schema_migrations.
+#
+# Consecuencia operativa (deliberada): toda migración mergeada en main de
+# gestoria-src se aplica sola en el siguiente sync, ANTES de que arranque el pod
+# nuevo (esquema antes que código). Un runner que falle bloquea el despliegue
+# entero: el hook queda Failed con el log del Job y el sync no avanza.
+# D11: el Job NO interpreta códigos de salida — 0 = éxito, cualquier otro = fallo.
+# Por eso el runner se arregla antes en skirmbooks-gestoria-src#26 (exit 3 → 0
+# cuando una migración de datos no toca filas). Nada de `|| true` aquí.
+#
+# El Job NO tiene ttlSecondsAfterFinished: el último Job se conserva para poder
+# leer su log (`kubectl logs -n skirmshop job/skirmbooks-migrations`); el siguiente
+# sync lo borra y recrea (BeforeHookCreation). Re-ejecutar = nuevo sync.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: skirmbooks-migrations
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks
+    app.kubernetes.io/component: migrations
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skirmbooks
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # Mismo encaje que el Deployment skirmbooks-ui (amd64 fuera de LAN, arista edge).
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26          # uid del usuario postgres en la imagen CNPG
+        runAsGroup: 26
+        fsGroup: 26            # el emptyDir se comparte init ↔ contenedor
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: work
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      initContainers:
+        - name: clone-migrations
+          image: docker.io/alpine/git:v2.54.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              git config --global http."https://github.com/".extraheader \
+                "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64)"
+              git clone --depth 1 https://github.com/pocharlies-org/skirmbooks-gestoria-src /work/repo
+          env:
+            - name: HOME
+              value: /tmp
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: skirmbooks-git-token
+                  key: token
+          volumeMounts:
+            - { name: work, mountPath: /work }
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+      containers:
+        - name: apply-migrations
+          # Servidor real 17.5 (show server_version en postgres-shared-3); imagen
+          # ya usada en el clúster por los propios instances CNPG.
+          image: ghcr.io/cloudnative-pg/postgresql:17.5
+          command: ["/bin/bash", "/work/repo/scripts/apply-migrations.sh"]
+          env:
+            - name: HOME
+              value: /tmp
+            # Mismo host que GESTORIA_DB_URL (service CNPG → primary).
+            - name: PGHOST
+              value: postgres-shared-rw.databases.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            # El runner solo acepta 'skirmbooks' (preflight línea 26; 'skirmshop'
+            # es la base del SII, NO la de gestoría).
+            - name: PGDATABASE
+              value: skirmbooks
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-superuser
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-superuser
+                  key: password
+          volumeMounts:
+            - { name: work, mountPath: /work }
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }

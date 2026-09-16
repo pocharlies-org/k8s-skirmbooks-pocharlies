@@ -1,0 +1,33 @@
+# SKIRM-17 — token de SOLO LECTURA para clonar pocharlies-org/skirmbooks-gestoria-src
+# (repo privado) desde el initContainer del hook PreSync (migrations-presync-hook.yaml).
+#
+# Publica el Secret `skirmbooks-git-token` (key `token`) en ns skirmshop desde el
+# item de 1Password `skirmshop-skirmbooks-git` (vault `k8s-pocharlies`), misma
+# convención que ui-secrets-external.yaml (ESO solo lee; el seeding es manual con
+# el op CLI — ver el header de ese fichero).
+#
+# REQUISITO PREVIO AL MERGE DEL HOOK: el item debe existir ANTES, o el primer
+# sync fallará (el initContainer no resuelve el secret → hook Failed → el despliegue
+# de skirmbooks queda bloqueado, que es el comportamiento buscado pero no deseado
+# por olvido de seeding). El token debe ser un fine-grained PAT con Contents: Read-only
+# SOBRE ESE REPO (no reutilizar el PAT clásico de argocd/pocharlies-org-creds, que
+# da lectura a toda la org y vive en otro namespace).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: skirmbooks-git-token
+  namespace: skirmshop
+spec:
+  refreshInterval: 6h
+  secretStoreRef:
+    name: onepassword
+    kind: ClusterSecretStore
+  target:
+    name: skirmbooks-git-token
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: token
+      remoteRef:
+        key: skirmshop-skirmbooks-git
+        property: token
