@@ -97,20 +97,30 @@ spec:
             # de Keycloak (firma+issuer+exp) y mintea sesión, sin pedir contraseña. LAN y
             # login por contraseña intactos (fail-closed sin la env). FOLLOW-UP: fijar
             # SSO_OIDC_AUDIENCE (client_id del oauth2-proxy) tras ver un token real.
+            # SKIRM-17: el rol interno lo deriva la app del header X-Auth-Request-Groups
+            # del proxy propio (set_xauthrequest=true): /skirmbooks-admins = admin de
+            # gestoría (platform admin), /skirmbooks-users = usuario de tenant, ninguno =
+            # sin rol (403 propio de la app). El header manda sobre la tabla local cuando
+            # la petición viene por el proxy (precedencia D3).
             - name: SSO_TRUST_ENABLED
               value: "true"
             - name: SSO_OIDC_ISSUER
               value: https://auth-next.e-dani.com/realms/edani
             - name: SSO_JWKS_URL
               value: http://keycloak.keycloak.svc.cluster.local/realms/edani/protocol/openid-connect/certs
-            # Logout de verdad en el host SSO: cierra la sesión de la app + la SSO (sign_out del
-            # oauth2-proxy encadenado al end_session de Keycloak) → cierra Google/Keycloak. En LAN
-            # (sin Bearer) el logout va a /login (password). Sin post_logout_redirect_uri → aterriza
-            # en la página "sesión cerrada" de Keycloak; para auto-volver a Skirmbooks hay que
-            # whitelistear https://skirmbooks.e-dani.com/ en "Valid post logout redirect URIs" del
-            # client oauth2-proxy (realm edani) y añadir &post_logout_redirect_uri=... aquí.
+            # Logout AISLADO contra el oauth2-proxy PROPIO de Skirmbooks (SKIRM-15/SKIRM-17,
+            # patrón "un proxy y unos grupos por software"): sign_out en skirmbooks.e-dani.com
+            # borra SOLO la cookie host-only _skirmbooks_sso y encadena el end_session de
+            # Keycloak con post_logout_redirect_uri de vuelta a Skirmbooks. ANTES apuntaba al
+            # proxy COMPARTIDO (auth-next.e-dani.com/oauth2/sign_out), cuyo sign_out barría la
+            # cookie de sesión compartida y tumbaba también dgx/grafana y las ~33 rutas del
+            # dashboard. El client oauth2-proxy (realm edani) ya tiene whitelisteada
+            # https://skirmbooks.e-dani.com/ en "Valid post logout redirect URIs" (el valor
+            # anterior ya la usaba) → ningún cambio en Keycloak. En LAN (sin Bearer) el logout
+            # va a /login (password), como siempre. La cadena sso-skirmbooks-chain reescribe
+            # SOLO 401: el 403 de requirePlatformAdmin (grupos) se queda 403 (D3).
             - name: SSO_LOGOUT_URL
-              value: "https://auth-next.e-dani.com/oauth2/sign_out?rd=https%3A%2F%2Fauth-next.e-dani.com%2Frealms%2Fedani%2Fprotocol%2Fopenid-connect%2Flogout%3Fpost_logout_redirect_uri%3Dhttps%253A%252F%252Fskirmbooks.e-dani.com%252F%26client_id%3Doauth2-proxy"
+              value: "https://skirmbooks.e-dani.com/oauth2/sign_out?rd=https%3A%2F%2Fauth-next.e-dani.com%2Frealms%2Fedani%2Fprotocol%2Fopenid-connect%2Flogout%3Fclient_id%3Doauth2-proxy%26post_logout_redirect_uri%3Dhttps%253A%252F%252Fskirmbooks.e-dani.com%252F"
             # SESSION_SECRET (HMAC de la cookie sb_tenant firmada + sesión __sb_session)
             # se inyecta vía envFrom: skirmbooks-ui-secrets — sembrar la clave
             # SESSION_SECRET (32+ bytes aleatorios) en Vault/ESO ANTES de AUTH_ENABLED=true.
