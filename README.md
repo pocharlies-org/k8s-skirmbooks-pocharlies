@@ -10,6 +10,16 @@ GitOps manifests for `skirmbooks-ui`, migrated from the Sauvage Docker container
 
 The app's legacy Docker database `shared-postgres/gestoria` was dumped and restored into the definitive k8s shared PostgreSQL database `skirmbooks`.
 
+## SSO
+
+La app va detrás de la chain propia `sso-skirmbooks-chain` (ns `keycloak`), con su
+oauth2-proxy dedicado (`oauth2-proxy-skirmbooks`) y cookie **host-only**
+`_skirmbooks_sso` (sin `cookie_domains`), independiente de `_edani_sso` del
+dashboard. Los grupos (`/skirmbooks-users`, `/skirmbooks-admins`) llegan por la
+cabecera `X-Auth-Request-Groups`; la app deriva sus roles de ahí y no consulta
+Keycloak. El patrón completo está en
+[k8s-infra-pocharlies/docs/sso-por-app.md](https://github.com/pocharlies-org/k8s-infra-pocharlies/blob/main/docs/sso-por-app.md).
+
 ## Migraciones
 
 Las migraciones de `skirmbooks-gestoria-src` (`migrations/*.sql`, registro en
