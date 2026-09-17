@@ -1,0 +1,148 @@
+# SKIRM-15 (D13) — espejo GitOps del superuser de CNPG para el hook PreSync
+# =============================================================================
+# PURPOSE
+#   El hook PreSync de migraciones (migrations-presync-hook.yaml) lee usuario y
+#   contraseña del Secret `skirmshop/shared-postgres-superuser`. Hasta hoy ese
+#   Secret lo producía un ExternalSecret contra Vault (`secret/skirmshop/postgres`),
+#   una COPIA A MANO de una credencial que posee y puede rotar CloudNativePG.
+#   El 17-09 la copia de Vault estaba rancia y el PreSync falló con
+#   `password authentication failed for user "postgres"` (decisión D13 del CTO:
+#   adjunto SKIRM-15 decision-d13-credencial.md). La copia en Vault es un
+#   generador de deriva: funciona el día que se escribe y rompe el día que rota.
+#
+#   Este fichero la SUSTITUYE por el provider `kubernetes` de external-secrets
+#   (v2.5.0, ya desplegado — no es componente nuevo): el Secret de skirmshop
+#   pasa a ESPEJAR el valor vivo `databases/postgres-shared-superuser` que
+#   reconcilia CNPG (cluster `postgres-shared`, enableSuperuserAccess: true).
+#   La deriva deja de ser posible.
+#
+# SUPERFICIE CONSUMIDA (no cambia — D13):
+#   Secret skirmshop/shared-postgres-superuser, claves `username` y `password`,
+#   exactamente las que lee el hook (secretKeyRef PGUSER/PGPASSWORD).
+#   Mapeo directo desde las claves homónimas del secret de CNPG.
+#
+# ADOPT (same name):
+#   El ExternalSecret vive en el clúster con el MISMO nombre y sin dueño ArgoCD
+#   (aplicado a mano en la era Vault; managedFields vacío → sin manager con el
+#   que entrar en conflicto de server-side-apply). Este manifiesto lo adopta y
+#   le cambia el spec in place: mismo nombre, mismo target, nuevo store.
+#   La anotación `force-sync` que quede en el objeto vivo se la lleva selfHeal
+#   en el primer sync — refresco continuo = refreshInterval 5m, ya no hace
+#   falta la anotación.
+#
+# MECANISMO (schema verificado contra los CRDs instalados de ESO v2.5.0 y la
+#   doc oficial external-secrets.io provider/kubernetes):
+#   - auth.serviceAccount → el operador firma un token (TokenRequest) para el
+#     SA dedicado; el ClusterRole `external-secrets-controller` ya tiene
+#     `serviceaccounts/token: create`. NO se usa el SA del propio operador
+#     (prohibido por diseño del provider).
+#   - remoteNamespace: databases → lectura cross-namespace (en v2 ya no existe
+#     `clusterScope`; el namespace remoto lo fija el store).
+#   - server.caProvider → CA interna del clúster desde el ConfigMap
+#     `kube-root-ca.crt` de `databases`; url omitida = kubernetes.default.
+#   - Role en `databases`: `get` SOBRE el secret concreto (resourceNames) +
+#     `selfsubjectrulesreviews: create` (la validación del store la exige; la
+#     doc oficial lo documenta). Sin list/watch: resourceNames no restringe
+#     list, así que se omite para no exponer los nombres del namespace.
+#
+# EVIDENCIA (17-09-2026, sha256 de la contraseña, prefijos 8):
+#   CNPG databases/postgres-shared-superuser ....... ef20f81e  (vivo, posesión de CNPG)
+#   Vault secret/skirmshop/postgres#superuser-password tras re-sembrar ... ef20f81e (MATCH)
+#   skirmshop/shared-postgres-superuser antes de re-sembrar .............. 7d5a853b (rancio, la deriva D13)
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-cnpg-superuser-reader
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+---
+# RBAC en el namespace del secret origen: solo lectura del secret de CNPG.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-cnpg-superuser-reader
+  namespace: databases
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["postgres-shared-superuser"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-cnpg-superuser-reader
+  namespace: databases
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+subjects:
+  - kind: ServiceAccount
+    name: eso-cnpg-superuser-reader
+    namespace: skirmshop
+roleRef:
+  kind: Role
+  name: eso-cnpg-superuser-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: kubernetes-cnpg
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: databases
+      server:
+        # url omitida → kubernetes.default (API interno del clúster)
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+          namespace: databases
+      auth:
+        serviceAccount:
+          name: eso-cnpg-superuser-reader
+          namespace: skirmshop
+---
+# Reemplaza (mismo nombre) el ExternalSecret rancio contra vault-backend.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: shared-postgres-superuser
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  # 5m: el hook PreSync consume este Secret en cada sync; el espejo debe ir
+  # detrás de CNPG sin esperar la hora del refresco viejo (deriva D13).
+  refreshInterval: 5m
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: kubernetes-cnpg
+  target:
+    name: shared-postgres-superuser
+    creationPolicy: Owner
+    # Retain: borrar el ExternalSecret no borra el Secret que consume el hook.
+    deletionPolicy: Retain
+  data:
+    - secretKey: username
+      remoteRef:
+        key: postgres-shared-superuser   # nombre del Secret de CNPG en databases
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: postgres-shared-superuser
+        property: password
