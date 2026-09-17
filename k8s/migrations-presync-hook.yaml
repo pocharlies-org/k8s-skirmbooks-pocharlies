@@ -1,0 +1,123 @@
+# SKIRM-17 — PreSync hook: aplica las migraciones de skirmbooks en cada sync de
+# la app `skirmbooks` (decisión D12 del CTO, 16-09-2026).
+#
+# Mecanismo: el Job corre `bash scripts/apply-migrations.sh` desde la imagen
+# `harbor.lan.e-dani.com/homelab/skirmbooks-migrations`, que publica el
+# release.yml de skirmbooks-gestoria-src con el MISMO tag que skirmbooks-ui
+# (base psql 17, WORKDIR /app, contiene migrations/ y scripts/). El esquema
+# queda clavado al tag del código: nunca pueden ir separados. Sin clonado de
+# repo, sin dependencia de GitHub y sin credencial alguna (D12).
+#
+# TAG: invariante del diseño (escrito también en README.md): el tag de
+# `skirmbooks-migrations` y el de `skirmbooks-ui` se mueven en el mismo commit
+# de bump; si se separan, se separan mal. Este fichero lleva tag@digest de
+# `deh-20260916-2` — el mismo tag y la misma revision de git que
+# skirmbooks-ui en k8s/manifest.yaml, ambas publicadas por el mismo run de
+# release.yml (D12: hook y bump en UN solo commit, cero ventana).
+#
+# El runner aplica TODO lo pendiente contra la base `skirmbooks` de
+# postgres-shared-rw (service CNPG → primary, el mismo host que usa hoy
+# GESTORIA_DB_URL), como superuser del secret shared-postgres-superuser
+# (rol postgres, rolsuper+bypassrls — el preflight RLS del runner lo exige).
+# Idempotente: salta lo ya registrado en public.schema_migrations.
+#
+# Consecuencia operativa (deliberada): toda migración mergeada en main de
+# gestoria-src se aplica sola en el siguiente sync, ANTES de que arranque el
+# pod nuevo (esquema antes que código). Un runner que falle bloquea el
+# despliegue entero: el hook queda Failed con el log del Job y el sync no
+# avanza. D11: el Job NO interpreta códigos de salida — 0 = éxito, cualquier
+# otro = fallo (por eso el runner cambió su exit 3 a 0 en
+# skirmbooks-gestoria-src#26). Nada de `|| true` aquí.
+#
+# El Job NO tiene ttlSecondsAfterFinished: el último Job se conserva para poder
+# leer su log (`kubectl logs -n skirmshop job/skirmbooks-migrations`); el siguiente
+# sync lo borra y recrea (BeforeHookCreation). Re-ejecutar = nuevo sync.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: skirmbooks-migrations
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks
+    app.kubernetes.io/component: migrations
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skirmbooks
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # Mismo pull secret y mismo encaje que el Deployment skirmbooks-ui
+      # (amd64 fuera de LAN, arista edge).
+      imagePullSecrets:
+        - name: harbor-pull
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: topology
+                operator: NotIn
+                values:
+                - lan
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: apply-migrations
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-migrations@sha256:2576de95d2f6e5804e5c26207e591db709792bd67f69f59a09b494a26238d761  # deh-20260916-2
+          imagePullPolicy: IfNotPresent
+          # command explícito aunque la imagen fije ENTRYPOINT (D12): el Job no
+          # depende de cómo el Dockerfile declare la entrada.
+          command: ["bash", "scripts/apply-migrations.sh"]
+          workingDir: /app
+          env:
+            - name: HOME
+              value: /tmp
+            # Mismo host que GESTORIA_DB_URL (service CNPG → primary).
+            - name: PGHOST
+              value: postgres-shared-rw.databases.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            # El runner solo acepta 'skirmbooks' (preflight; 'skirmshop'
+            # es la base del SII, NO la de gestoría).
+            - name: PGDATABASE
+              value: skirmbooks
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-superuser
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-postgres-superuser
+                  key: password
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
