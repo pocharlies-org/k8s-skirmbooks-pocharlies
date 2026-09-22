@@ -1,11 +1,19 @@
-# Vigilancia DEHú: dos pasadas al día (05:15 y 15:15 UTC ≈ mañana y media
-# tarde peninsular). El job publica UN comando notifications.skirmshop.deh.poll;
-# todo lo demás (leer buzones, emparejar NIF, escalar severidades, marcar
-# vencidas, publicar los dispatch) lo hace el adapter en deh_poll — el cron
-# no toca la BD. Patrón = tax-modelo-sweep ("no engine para skirmbooks").
+# Vigilancia DEHú: tres pasadas al día (05:15, 15:15 y 22:15 Europe/Madrid —
+# temprano, mediodía y noche). El job publica UN comando
+# notifications.skirmshop.deh.poll; todo lo demás (leer buzones, emparejar NIF,
+# escalar severidades, marcar vencidas, publicar los dispatch) lo hace el
+# adapter en deh_poll — el cron no toca la BD. Patrón = tax-modelo-sweep
+# ("no engine para skirmbooks").
 #
-# La segunda pasada es la que pilla los vencimientos del mismo día: el escalado
-# a critical a ≤1 día se dispara en cuanto quedan <24 h.
+# timeZone explícito: sin él los CronJobs corren en UTC y los avisos de
+# cortesía de DEHú (noreply.dehu@correo.gob.es), que llegan por la tarde-noche
+# (~18:50-19:15 CEST medido), no se detectaban hasta la pasada de la mañana
+# siguiente — ventana ciega de ~12 h. La pasada de noche (22:15) cierra ese
+# hueco. Repetir corridas es seguro: el UPSERT del poll es idempotente por
+# (tenant, external_id) y el handler sólo lee el buzón y la BD propia.
+#
+# La pasada de las 15:15 es la que pilla los vencimientos del mismo día: el
+# escalado a critical a ≤1 día se dispara en cuanto quedan <24 h.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -73,7 +81,8 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
     e-dani.com/portfolio: skirmshop
 spec:
-  schedule: "15 5 * * *"   # 07:15 peninsular
+  schedule: "15 5 * * *"   # 05:15 peninsular
+  timeZone: Europe/Madrid
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 600
   successfulJobsHistoryLimit: 3
@@ -133,7 +142,69 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
     e-dani.com/portfolio: skirmshop
 spec:
-  schedule: "15 15 * * *"   # 17:15 peninsular — pilla los vencimientos del día
+  schedule: "15 15 * * *"   # 15:15 peninsular — pilla los vencimientos del día
+  timeZone: Europe/Madrid
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-deh-poll
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: poll
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:casillas-12-13-20260814@sha256:30e7ed63c3dbdfb79e5e99d4b6810ac7b958ba57244c8e28ef773d12bd2fe450
+            command: ["python", "/scripts/poll.py"]
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
+              subPath: adapter-gestoria-notifications.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-deh-poll-script
+          - name: config
+            configMap:
+              name: skirmbooks-notifications-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
+              defaultMode: 292
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-deh-poll-night
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-deh-poll
+    app.kubernetes.io/part-of: skirmbooks
+    e-dani.com/portfolio: skirmshop
+spec:
+  schedule: "15 22 * * *"   # 22:15 peninsular — cierra la ventana ciega nocturna (los avisos de DEHú llegan ~18:50-19:15)
+  timeZone: Europe/Madrid
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 600
   successfulJobsHistoryLimit: 3
