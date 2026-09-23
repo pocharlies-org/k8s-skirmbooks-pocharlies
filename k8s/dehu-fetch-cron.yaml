@@ -3,7 +3,8 @@
 #
 # Decisión de Dani (23-09-2026): para 100WORDS (tenant alphalink) el sistema
 # comparece solo en cuanto entra el aviso. Comparecer = ACEPTAR la notificación
-# (arranca plazos); por eso DEHU_AUTO_TENANTS es una lista explícita.
+# (arranca plazos). Qué empresas lo decide deh.auto_fetch / deh.auto_fetch_tenants
+# en skirmbooks-notifications-config (backend-config.yaml).
 #
 # Cada 15 min: si no hay notificaciones 'received' sin PDF de esas empresas, el
 # pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
@@ -30,7 +31,7 @@ data:
     normal (el WAF F5 de DEHú rechaza ``HeadlessChrome``) y la parte Cl@ve con
     certificado por httpx/OpenSSL (RSA-PSS, que Chrome no hace).
 
-    Cada pasada, por cada empresa de ``DEHU_AUTO_TENANTS``:
+    Cada pasada, por cada empresa con comparecencia automática (``deh.auto_fetch``):
       1. BD skirmbooks: notificaciones ``state='received'`` sin PDF.
       2. Gmail: el correo de cortesía (por Identificador) → PDF del aviso.
       3. DEHú: login SAML con el certificado → comparecencia (re-autenticación) →
@@ -39,12 +40,13 @@ data:
       5. RabbitMQ: ``notifications.deh.attach`` (archiva el PDF real y lo enlaza)
          y ``notifications.deh.ack`` (abierta: resuelve alertas, para recordatorios).
 
-    Nota jurídica: comparecer = ACEPTAR la notificación (arranca plazos). Sólo se
-    hace para las empresas listadas en DEHU_AUTO_TENANTS, por decisión de Dani
-    (23-09-2026, 100WORDS).
+    Qué empresas: lo decide la config del adapter de notificaciones —
+    ``deh.auto_fetch`` (on/off, por defecto on) y ``deh.auto_fetch_tenants`` (vacío
+    = todas las de ``tenants`` con certificado montado). Comparecer = ACEPTAR la
+    notificación: el plazo corre desde ese momento.
 
     Variables (el resto sale de la config del adapter de notificaciones):
-      DEHU_AUTO_TENANTS   empresas con comparecencia automática (coma), p. ej. alphalink
+      DEHU_AUTO_TENANTS   (opcional) fuerza la lista de empresas, por encima de la config
       DEHU_CERT_DIR       dir con <tenant>.p12 + <tenant>.passphrase
       DEHU_MAX_PER_RUN    tope de notificaciones por pasada (defecto 3)
       DEHU_DRY_RUN        1 = no comparece ni publica nada: sólo lista y hace login
@@ -512,17 +514,39 @@ data:
                 await browser.close()
 
 
+    def auto_tenants(cfg: dict) -> list[str]:
+        """Empresas a comparecer: env (override) > deh.auto_fetch_tenants > todas
+        las de ``tenants`` con certificado montado."""
+        if AUTO_TENANTS:
+            return AUTO_TENANTS
+        deh = cfg.get("deh") or {}
+        listed = deh.get("auto_fetch_tenants") or []
+        if listed:
+            return listed
+        with_cert = [t for t in (cfg.get("tenants") or [])
+                     if os.path.exists(os.path.join(CERT_DIR, f"{t}.p12"))]
+        for t in cfg.get("tenants") or []:
+            if t not in with_cert:
+                log("skip_no_cert", tenant=t)
+        return with_cert
+
+
     async def main() -> int:
         import yaml
-        if not AUTO_TENANTS:
+        cfg = yaml.safe_load(Path(NOTIF_CONFIG).read_text())
+        deh = cfg.get("deh") or {}
+        if not deh.get("enabled") or not deh.get("auto_fetch", True):
+            log("auto_fetch_disabled")
+            return 0
+        tenants = auto_tenants(cfg)
+        if not tenants:
             log("no_auto_tenants")
             return 0
         if not TG_TOKEN and not DRY_RUN:
             log("missing_telegram_token")
             return 1
-        cfg = yaml.safe_load(Path(NOTIF_CONFIG).read_text())
         rc = 0
-        for tenant in AUTO_TENANTS:
+        for tenant in tenants:
             try:
                 await process_tenant(cfg, tenant)
             except Exception as exc:
@@ -641,8 +665,6 @@ spec:
             image: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.2@sha256:36a82d8a14187cb14fb15fbe3b8aae7b4138206969a6d6f5a3e9d7f162c753a9
             command: ["python3", "/scripts/dehu_fetch.py"]
             env:
-            - name: DEHU_AUTO_TENANTS
-              value: alphalink
             - name: DEHU_CERT_DIR
               value: /etc/dehu/certs
             - name: DEHU_MAX_PER_RUN
