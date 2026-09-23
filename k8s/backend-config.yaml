@@ -196,6 +196,9 @@ data:
       enabled: true
       watched_mailboxes:
       - info@skirmshop.es
+      # Desde el 23-09-2026 DEHú manda los avisos de 100WORDS aquí (cambiado en
+      # "Datos de contacto" de DEHú; Synapse lo recibe además por push).
+      - me@e-dani.com
       lookback_days: 12
       gmail_sa_path: /etc/synapse/gmail/sa.json
       sender_mailbox: info@e-dani.com
@@ -205,6 +208,13 @@ data:
         bucket: skirmshop-drive
         prefix: skirmbooks/dehu
         secure: false
+      # 100WORDS (alphalink) avisa en su propio topic de Pocharlies Operations,
+      # no en el grupo de Skirmshop. thread_id fijo: el CronJob
+      # skirmbooks-dehu-fetch sube ahí los PDFs.
+      telegram_targets:
+        alphalink:
+          chat_id: "-1004409526898"
+          thread_id: 2895
     tenants:
     - skirmshop
     - moreno
