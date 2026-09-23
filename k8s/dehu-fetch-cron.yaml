@@ -602,6 +602,10 @@ spec:
         spec:
           restartPolicy: Never
           enableServiceLinks: false
+          # La imagen corre como pwuser (1001): fsGroup para leer el
+          # certificado montado 0440 sin abrirlo a "otros".
+          securityContext:
+            fsGroup: 1001
           imagePullSecrets:
           - name: harbor-pull
           tolerations:
