@@ -1948,7 +1948,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-1@sha256:7ec26dc333e6c98a7ad55ea5dbc2bdd54e26dd571771001711ea4cb92e3c8257
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-2@sha256:80d451d3fb6d63ee871cbc98103c26cba6b84183f54577539dc35db434a0890d
         args:
         - synapse_adapter_notifications
         env:
@@ -2064,7 +2064,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-1@sha256:7ec26dc333e6c98a7ad55ea5dbc2bdd54e26dd571771001711ea4cb92e3c8257
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-2@sha256:80d451d3fb6d63ee871cbc98103c26cba6b84183f54577539dc35db434a0890d
         args:
         - synapse_adapter_notifications
         env:
