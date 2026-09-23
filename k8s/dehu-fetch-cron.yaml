@@ -87,6 +87,9 @@ data:
     MAX_PER_RUN = int(os.environ.get("DEHU_MAX_PER_RUN", "3"))
     DRY_RUN = os.environ.get("DEHU_DRY_RUN", "") in ("1", "true", "yes")
     TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    # Re-ejecuciones (p. ej. tras un attach fallido): archivar y marcar abierta sin
+    # volver a publicar los PDFs en el topic.
+    SKIP_TELEGRAM = os.environ.get("DEHU_SKIP_TELEGRAM", "") in ("1", "true", "yes")
 
 
     def log(event: str, **kw) -> None:
@@ -386,7 +389,8 @@ data:
             r = await c.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendDocument", data=fields,
                              files={"document": (filename, data, "application/pdf")})
         ok = r.status_code == 200 and r.json().get("ok")
-        log("telegram_document", ok=bool(ok), filename=filename, status=r.status_code)
+        log("telegram_document", ok=bool(ok), filename=filename, status=r.status_code,
+            message_id=(r.json().get("result") or {}).get("message_id") if ok else None)
         return bool(ok)
 
 
@@ -488,14 +492,15 @@ data:
                     # 3) Telegram: los dos PDFs
                     cap = (f"<b>DEHú · {H.escape(it['emisor'] or '')}</b>\n"
                            f"Identificador: <code>{H.escape(ident)}</code>")
-                    if aviso:
+                    if aviso and not SKIP_TELEGRAM:
                         await tg_send_document(target, f"aviso_{ident}.pdf", aviso,
                                                cap + "\n📨 Aviso de cortesía")
                     if doc:
                         name, data = doc
-                        await tg_send_document(target, name if name.lower().endswith(".pdf")
-                                               else f"{name}.pdf", data,
-                                               cap + "\n📄 Notificación descargada (comparecida)")
+                        if not SKIP_TELEGRAM:
+                            await tg_send_document(target, name if name.lower().endswith(".pdf")
+                                                   else f"{name}.pdf", data,
+                                                   cap + "\n📄 Notificación descargada (comparecida)")
                         # 4) archivar + marcar abierta
                         await publish(cfg, "notifications.deh.attach", tenant, {
                             "pdf_base64": base64.b64encode(data).decode(),
