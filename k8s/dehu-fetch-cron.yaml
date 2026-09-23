@@ -1,0 +1,680 @@
+# DEHú · comparecencia automática y entrega de los dos PDFs (aviso de cortesía +
+# notificación real) al topic de Telegram de la empresa.
+#
+# Decisión de Dani (23-09-2026): para 100WORDS (tenant alphalink) el sistema
+# comparece solo en cuanto entra el aviso. Comparecer = ACEPTAR la notificación
+# (arranca plazos); por eso DEHU_AUTO_TENANTS es una lista explícita.
+#
+# Cada 10 min: si no hay notificaciones 'received' sin PDF de esas empresas, el
+# pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
+# skirmbooks-aeat-browser, la que ya lleva Playwright) + httpx/OpenSSL para la
+# cadena Cl@ve con el certificado → PDF del aviso (el correo, de Gmail) + PDF
+# real → Telegram (topic fijo de deh.telegram_targets) → notifications.deh.attach
+# y notifications.deh.ack por RabbitMQ (las mismas credenciales que el poll).
+# Fuente del script: skirmbooks-gestoria-src/scripts/dehu/dehu_fetch.py.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-dehu-fetch-script
+  namespace: skirmshop
+data:
+  dehu_fetch.py: |
+    #!/usr/bin/env python3
+    """DEHú: comparecencia automática, descarga de la notificación y entrega de los
+    dos PDFs (aviso de cortesía + notificación real) al topic de Telegram de la
+    empresa.
+
+    Corre como CronJob ``skirmbooks-dehu-fetch`` (imagen skirmbooks-aeat-browser:
+    Playwright+Chromium+httpx). Es la misma cadena que ``dehu_chain.py`` (medida el
+    16-09-2026) pero sin el Chrome del Mac: Chromium headless con UA de Chrome
+    normal (el WAF F5 de DEHú rechaza ``HeadlessChrome``) y la parte Cl@ve con
+    certificado por httpx/OpenSSL (RSA-PSS, que Chrome no hace).
+
+    Cada pasada, por cada empresa de ``DEHU_AUTO_TENANTS``:
+      1. BD skirmbooks: notificaciones ``state='received'`` sin PDF.
+      2. Gmail: el correo de cortesía (por Identificador) → PDF del aviso.
+      3. DEHú: login SAML con el certificado → comparecencia (re-autenticación) →
+         ``/api/v1/realized_notifications/<sentRef>/document`` → PDF real.
+      4. Telegram: sube los dos PDFs al topic de la empresa (sendDocument).
+      5. RabbitMQ: ``notifications.deh.attach`` (archiva el PDF real y lo enlaza)
+         y ``notifications.deh.ack`` (abierta: resuelve alertas, para recordatorios).
+
+    Nota jurídica: comparecer = ACEPTAR la notificación (arranca plazos). Sólo se
+    hace para las empresas listadas en DEHU_AUTO_TENANTS, por decisión de Dani
+    (23-09-2026, 100WORDS).
+
+    Variables (el resto sale de la config del adapter de notificaciones):
+      DEHU_AUTO_TENANTS   empresas con comparecencia automática (coma), p. ej. alphalink
+      DEHU_CERT_DIR       dir con <tenant>.p12 + <tenant>.passphrase
+      DEHU_MAX_PER_RUN    tope de notificaciones por pasada (defecto 3)
+      DEHU_DRY_RUN        1 = no comparece ni publica nada: sólo lista y hace login
+      TELEGRAM_BOT_TOKEN  bot de Synapse (el mismo que publica las alertas)
+      NOTIF_CONFIG        /etc/synapse/adapter-gestoria-notifications.yaml
+      CREDS_DIR           /etc/synapse/credentials
+      GMAIL_SA            /etc/synapse/gmail/sa.json
+    """
+    from __future__ import annotations
+
+    import asyncio
+    import base64
+    import html as H
+    import json
+    import os
+    import re
+    import subprocess
+    import sys
+    import tempfile
+    import time
+    import urllib.parse
+    import uuid
+    from pathlib import Path
+
+    import httpx
+
+    UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36")
+    DEHU = "https://dehu.redsara.es"
+    SP_URL = "https://pasarela.clave.gob.es/Proxy2/ServiceProvider"
+    SR_URL = "https://pasarela.clave.gob.es/Proxy2/ServiceRedirect"
+    AC_URL = "https://pasarela-ident.clave.gob.es/IdP2/AuthenticateCitizen"
+    RR_URL = "https://pasarela.clave.gob.es/Proxy2/ResponseRedirect"
+
+    NOTIF_CONFIG = os.environ.get("NOTIF_CONFIG", "/etc/synapse/adapter-gestoria-notifications.yaml")
+    CREDS_DIR = os.environ.get("CREDS_DIR", "/etc/synapse/credentials")
+    GMAIL_SA = os.environ.get("GMAIL_SA", "/etc/synapse/gmail/sa.json")
+    CERT_DIR = os.environ.get("DEHU_CERT_DIR", "/etc/dehu/certs")
+    AUTO_TENANTS = [t.strip() for t in os.environ.get("DEHU_AUTO_TENANTS", "").split(",") if t.strip()]
+    MAX_PER_RUN = int(os.environ.get("DEHU_MAX_PER_RUN", "3"))
+    DRY_RUN = os.environ.get("DEHU_DRY_RUN", "") in ("1", "true", "yes")
+    TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+
+    def log(event: str, **kw) -> None:
+        print(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                          "event": event, **kw}, ensure_ascii=False), flush=True)
+
+
+    def _read(path: str) -> str:
+        return Path(path).read_text().strip()
+
+
+    def _with_password(url: str, pw: str) -> str:
+        scheme, rest = url.split("://", 1)
+        user, tail = rest.split("@", 1)
+        return f"{scheme}://{user}:{urllib.parse.quote(pw, safe='')}@{tail}"
+
+
+    def _unwrap(v):
+        """metadata jsonb viene doble-codificado y acumulado (lista de copias)."""
+        while isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except Exception:
+                break
+        if isinstance(v, list):
+            for item in reversed(v):
+                item = _unwrap(item)
+                if isinstance(item, dict):
+                    return item
+            return {}
+        return v if isinstance(v, dict) else {}
+
+
+    # ── certificado ────────────────────────────────────────────────────────────
+
+    def cert_pems(tenant: str, workdir: str) -> tuple[str, str]:
+        p12 = os.path.join(CERT_DIR, f"{tenant}.p12")
+        pw = _read(os.path.join(CERT_DIR, f"{tenant}.passphrase"))
+        chain = os.path.join(workdir, "chain.pem")
+        key = os.path.join(workdir, "key.pem")
+        for extra in ([], ["-legacy"]):
+            a = subprocess.run(["openssl", "pkcs12", *extra, "-in", p12, "-passin", f"pass:{pw}",
+                                "-nokeys", "-clcerts", "-out", chain], capture_output=True)
+            b = subprocess.run(["openssl", "pkcs12", *extra, "-in", p12, "-passin", f"pass:{pw}",
+                                "-nocerts", "-nodes", "-out", key], capture_output=True)
+            if a.returncode == 0 and b.returncode == 0:
+                os.chmod(key, 0o600)
+                return chain, key
+        raise RuntimeError(f"no se pudo abrir el .p12 de {tenant}")
+
+
+    # ── Cl@ve: la cadena SAML con certificado (httpx/OpenSSL) ──────────────────
+
+    def _input_value(h: str, name: str) -> str | None:
+        for tag in re.finditer(r"<input\b[^>]*>", h):
+            t = tag.group()
+            if re.search(r'''name=["']%s["']''' % re.escape(name), t):
+                vm = re.search(r'''value=["']([^"']*)["']''', t)
+                return H.unescape(vm.group(1)) if vm else None
+        return None
+
+
+    def _form_fields(h: str, contains: str) -> dict:
+        for f in re.split(r"<form", h):
+            if contains in f[:500]:
+                out = {}
+                for tag in re.finditer(r"<input\b[^>]*>", f):
+                    t = tag.group()
+                    nm = re.search(r'''name=["']([^"']+)["']''', t)
+                    vm = re.search(r'''value=["']([^"']*)["']''', t)
+                    if nm:
+                        out[nm.group(1)] = H.unescape(vm.group(1)) if vm else ""
+                return out
+        return {}
+
+
+    def _dehu_form(h: str) -> tuple[str | None, str | None]:
+        for fm in re.finditer(r'<form\b[^>]*action="(https://dehu[^"]*)"[^>]*>(.*?)</form>', h, re.S):
+            sr = _input_value(fm.group(2), "SAMLResponse")
+            if sr:
+                return H.unescape(fm.group(1)), sr
+        return None, None
+
+
+    async def saml_chain(sp_fields: dict, *, cert: tuple[str, str],
+                         cookies: list[dict] | None = None) -> str | None:
+        """ServiceProvider → ServiceRedirect(cert) → AuthenticateCitizen(cert) →
+        ResponseRedirect → POST al ACS (cross-site). Devuelve el Location con authData."""
+        form = {"Content-Type": "application/x-www-form-urlencoded"}
+        async with httpx.AsyncClient(cert=cert, timeout=60, follow_redirects=False,
+                                     headers={"User-Agent": UA,
+                                              "Accept-Language": "es-ES,es;q=0.9"}) as c:
+            for ck in cookies or []:
+                c.cookies.set(ck["name"], ck["value"], domain=ck["domain"], path=ck.get("path", "/"))
+            r = await c.post(SP_URL, data=sp_fields, headers={
+                **form, "Origin": DEHU, "Referer": DEHU + "/"})
+            req = _input_value(r.text, "SAMLRequest")
+            log("clave_service_provider", status=r.status_code, saml=bool(req))
+            if not req:
+                return None
+            r = await c.post(SR_URL, data={"SAMLRequest": req, "SelectedLanguage": "",
+                                           "SelectedIdP": "AFIRMA"},
+                             headers={**form, "Origin": "https://pasarela.clave.gob.es",
+                                      "Referer": SP_URL})
+            log("clave_service_redirect", status=r.status_code)
+            r = await c.post(AC_URL, data=_form_fields(r.text, "AuthenticateCitizen"),
+                             headers={**form, "Origin": "https://pasarela.clave.gob.es",
+                                      "Referer": SR_URL})
+            resp = _input_value(r.text, "SAMLResponse")
+            log("clave_authenticate_citizen", status=r.status_code, saml=bool(resp))
+            if not resp:
+                return None
+            r = await c.post(RR_URL, data={"SAMLResponse": resp}, headers={
+                **form, "Origin": "https://pasarela-ident.clave.gob.es", "Referer": AC_URL})
+            acs_url, acs_sr = _dehu_form(r.text)
+            log("clave_response_redirect", status=r.status_code, acs=bool(acs_sr))
+            if not acs_sr:
+                return None
+            r = await c.post(acs_url, data={"SAMLResponse": acs_sr}, headers={
+                **form, "Origin": "https://pasarela.clave.gob.es", "Referer": RR_URL,
+                "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Site": "cross-site"})
+            loc = r.headers.get("location")
+            log("dehu_acs", status=r.status_code, location=bool(loc))
+            return loc
+
+
+    # ── DEHú en Chromium ───────────────────────────────────────────────────────
+
+    CAPTURE = """
+    window.__cap = null;
+    const __orig = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function() {
+      if (this.action && this.action.includes('ServiceProvider')) {
+        const d = new FormData(this);
+        window.__cap = {action: this.action, fields: Object.fromEntries(d.entries())};
+        return; }
+      return __orig.apply(this, arguments); };
+    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+    """
+
+
+    async def dehu_login(page, cert) -> bool:
+        await page.goto(f"{DEHU}/es/notifications", wait_until="domcontentloaded")
+        await page.wait_for_timeout(5000)
+        if "Request Rejected" in (await page.title()):
+            log("dehu_waf_rejected")
+            return False
+        # El texto es un SPAN inerte: el que dispara la redirección a Cl@ve es el
+        # host dnt-button (el selector viejo dnt-button.access-btn ya no existe).
+        await page.locator("dnt-button", has_text=re.compile(r"Acceder", re.I)).first.click()
+        cap = None
+        for _ in range(30):
+            await page.wait_for_timeout(1000)
+            cap = await page.evaluate("window.__cap")
+            if cap:
+                break
+        if not cap:
+            log("dehu_login_no_saml_capture")
+            return False
+        loc = await saml_chain(cap["fields"], cert=cert)
+        if not loc:
+            return False
+        await page.goto(loc, wait_until="domcontentloaded")
+        for _ in range(20):
+            await page.wait_for_timeout(1000)
+            if await page.evaluate("localStorage.getItem('access_token')"):
+                log("dehu_login_ok")
+                return True
+        log("dehu_login_no_token")
+        return False
+
+
+    async def dehu_accept(page, ctx, cert, ident: str) -> bool:
+        """Comparecencia. La aceptación exige re-autenticación con el certificado:
+        el botón pide appearance-login-form, que devuelve un SAMLRequest nuevo."""
+        await page.goto(f"{DEHU}/es/notifications", wait_until="domcontentloaded")
+        row = page.get_by_text(ident, exact=False).last
+        await row.wait_for(timeout=30000)
+        await row.click()
+        await page.wait_for_timeout(5000)
+        await page.get_by_text("Aceptar notificación", exact=True).first.click()
+        await page.wait_for_timeout(2500)
+        await page.locator("dnt-checkbox").first.click()
+        await page.wait_for_timeout(800)
+        async with page.expect_response(lambda r: "appearance-login-form" in r.url,
+                                        timeout=30000) as ri:
+            await page.locator("dnt-button", has_text=re.compile("Aceptar notificación", re.I)).last.click()
+        body = await (await ri.value).text()
+        try:
+            parsed = json.loads(body)
+            body = parsed if isinstance(parsed, str) else json.dumps(parsed)
+        except Exception:
+            pass
+        m = re.search(r'name=\\?"SAMLRequest\\?"[^>]*value=\\?"([^"\\]+)', body)
+        if not m:
+            log("dehu_accept_no_appearance_saml")
+            return False
+        cookies = await ctx.cookies(DEHU)
+        loc = await saml_chain({"SAMLRequest": H.unescape(m.group(1)), "forcedIdP": "none",
+                                "excludedIdPList": "", "allowLegalPerson": "1"},
+                               cert=cert, cookies=cookies)
+        if not loc:
+            return False
+        await page.goto(loc, wait_until="domcontentloaded")
+        await page.wait_for_timeout(10000)
+        ok = "realized" in page.url or "resguardo" in (await page.inner_text("body")).lower()
+        log("dehu_accept", ok=ok, url=page.url[:120])
+        return ok
+
+
+    async def dehu_document(page, sent_ref: str) -> tuple[str, bytes] | None:
+        d = await page.evaluate(
+            """async (p) => { const r = await fetch(p, {headers: {Authorization:
+                 'Bearer ' + localStorage.getItem('access_token')}});
+               return r.ok ? await r.json() : {__http: r.status}; }""",
+            f"/api/v1/realized_notifications/{sent_ref}/document")
+        if not d or d.get("__http") or not d.get("content"):
+            log("dehu_document_unavailable", detail=str(d)[:120])
+            return None
+        return d.get("name") or f"notificacion_{sent_ref[:12]}.pdf", base64.b64decode(d["content"])
+
+
+    # ── Gmail: el correo de cortesía (para el PDF del aviso) ───────────────────
+
+    def _b64u(b: bytes) -> str:
+        return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+    async def gmail_token(mailbox: str) -> str:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+        sa = json.loads(Path(GMAIL_SA).read_text())
+        now = int(time.time())
+        head = _b64u(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+        body = _b64u(json.dumps({"iss": sa["client_email"], "sub": mailbox,
+                                 "scope": "https://www.googleapis.com/auth/gmail.readonly",
+                                 "aud": "https://oauth2.googleapis.com/token",
+                                 "iat": now, "exp": now + 3600}).encode())
+        key = serialization.load_pem_private_key(sa["private_key"].encode(), password=None)
+        sig = key.sign(f"{head}.{body}".encode(), padding.PKCS1v15(), hashes.SHA256())
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post("https://oauth2.googleapis.com/token", data={
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": f"{head}.{body}.{_b64u(sig)}"})
+            r.raise_for_status()
+            return r.json()["access_token"]
+
+
+    async def courtesy_email_html(mailboxes: list[str], ident: str) -> str | None:
+        for mb in mailboxes:
+            try:
+                tok = await gmail_token(mb)
+            except Exception as exc:
+                log("gmail_token_failed", mailbox=mb, error=str(exc)[:120])
+                continue
+            async with httpx.AsyncClient(timeout=60, headers={"Authorization": f"Bearer {tok}"}) as c:
+                r = await c.get("https://gmail.googleapis.com/gmail/v1/users/me/messages",
+                                params={"q": f'from:correo.gob.es "{ident}"', "maxResults": 5})
+                ids = [m["id"] for m in r.json().get("messages", [])]
+                if not ids:
+                    continue
+                msg = (await c.get(f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{ids[0]}",
+                                   params={"format": "full"})).json()
+            parts, html = [msg.get("payload", {})], ""
+            while parts:
+                p = parts.pop()
+                parts.extend(p.get("parts") or [])
+                data = (p.get("body") or {}).get("data")
+                if p.get("mimeType") == "text/html" and data:
+                    html = base64.urlsafe_b64decode(data).decode("utf-8", "replace")
+            hdr = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
+            if html:
+                meta = (f"<div style='font:12px sans-serif;color:#555;border-bottom:1px solid #ccc;"
+                        f"padding:8px;margin-bottom:12px'><b>De:</b> {H.escape(hdr.get('from',''))}<br>"
+                        f"<b>Para:</b> {H.escape(hdr.get('to',''))}<br>"
+                        f"<b>Fecha:</b> {H.escape(hdr.get('date',''))}<br>"
+                        f"<b>Asunto:</b> {H.escape(hdr.get('subject',''))}</div>")
+                log("gmail_courtesy_found", mailbox=mb)
+                return meta + html
+        return None
+
+
+    # ── Telegram / RabbitMQ ─────────────────────────────────────────────────────
+
+    async def tg_send_document(target: dict, filename: str, data: bytes, caption: str) -> bool:
+        fields = {"chat_id": str(target["chat_id"]), "caption": caption[:1000], "parse_mode": "HTML"}
+        if target.get("thread_id"):
+            fields["message_thread_id"] = str(target["thread_id"])
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendDocument", data=fields,
+                             files={"document": (filename, data, "application/pdf")})
+        ok = r.status_code == 200 and r.json().get("ok")
+        log("telegram_document", ok=bool(ok), filename=filename, status=r.status_code)
+        return bool(ok)
+
+
+    async def publish(cfg: dict, plugin: str, tenant: str, params: dict) -> None:
+        import aio_pika
+        url = _with_password(cfg["rabbitmq"]["url"],
+                             _read(f"{CREDS_DIR}/synapse_adapter_gestoria_notifications.rmq.password"))
+        conn = await aio_pika.connect_robust(url)
+        async with conn:
+            ch = await conn.channel(publisher_confirms=True)
+            ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+            mid = uuid.uuid4().hex
+            body = json.dumps({"workflow_instance_id": str(uuid.uuid4()), "step_id": mid,
+                               "plugin": plugin, "params": params, "attempt": 1}).encode()
+            action = plugin.split(".", 1)[1]
+            await ex.publish(aio_pika.Message(
+                body=body, content_type="application/json", message_id=mid,
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                headers={"tenant_id": tenant, "source": "dehu-fetch-cron"}),
+                routing_key=f"notifications.{tenant}.{action}")
+        log("command_published", plugin=plugin, tenant=tenant)
+
+
+    # ── pasada ──────────────────────────────────────────────────────────────────
+
+    async def pending_for(cfg: dict, tenant: str) -> list[dict]:
+        import asyncpg
+        dsn = cfg["database"]["dsn"]
+        user = dsn.split("://", 1)[1].split("@", 1)[0].split(":")[0]
+        conn = await asyncpg.connect(_with_password(dsn, _read(f"{CREDS_DIR}/{user}.password")))
+        try:
+            await conn.execute("SELECT set_config('app.tenant_id', $1, false)", tenant)
+            rows = await conn.fetch("""
+                SELECT id::text AS id, external_id, emisor, asunto, acuse_deadline, metadata
+                FROM gestoria_notifications.deh_notifications
+                WHERE tenant_id=$1 AND state='received' AND pdf_attachment_id IS NULL
+                ORDER BY received_at LIMIT $2""", tenant, MAX_PER_RUN)
+        finally:
+            await conn.close()
+        out = []
+        for r in rows:
+            meta = _unwrap(r["metadata"])
+            m = re.search(r"/notifications/pending/([^/]+)/", meta.get("direct_url") or "")
+            out.append({**dict(r), "meta": meta, "sent_ref": m.group(1) if m else None})
+        return out
+
+
+    def telegram_target(cfg: dict, tenant: str) -> dict:
+        deh = cfg.get("deh") or {}
+        t = (deh.get("telegram_targets") or {}).get(tenant)
+        if t and t.get("thread_id"):
+            return {"chat_id": t["chat_id"], "thread_id": t["thread_id"]}
+        raise RuntimeError(f"{tenant}: sin deh.telegram_targets.{tenant}.thread_id — "
+                           "los PDFs necesitan un topic fijo")
+
+
+    async def process_tenant(cfg: dict, tenant: str) -> None:
+        from playwright.async_api import async_playwright
+        items = await pending_for(cfg, tenant)
+        log("pending", tenant=tenant, count=len(items))
+        if not items:
+            return
+        target = telegram_target(cfg, tenant)
+        mailboxes = (cfg.get("deh") or {}).get("watched_mailboxes") or []
+        with tempfile.TemporaryDirectory(prefix="dehu-") as work:
+            cert = cert_pems(tenant, work)
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
+                ctx = await browser.new_context(user_agent=UA, locale="es-ES",
+                                                viewport={"width": 1440, "height": 900})
+                await ctx.add_init_script(CAPTURE)
+                page = await ctx.new_page()
+                if not await dehu_login(page, cert):
+                    raise RuntimeError("login DEHú fallido")
+                for it in items:
+                    ident, sent_ref = it["external_id"], it["sent_ref"]
+                    if not sent_ref:
+                        log("skip_no_sent_ref", external_id=ident)
+                        continue
+                    # 1) aviso de cortesía → PDF (antes de comparecer: no depende de DEHú)
+                    aviso = None
+                    html = await courtesy_email_html(mailboxes, ident)
+                    if html:
+                        p2 = await ctx.new_page()
+                        await p2.set_content(html, wait_until="load")
+                        aviso = await p2.pdf(format="A4", print_background=True,
+                                             margin={"top": "15mm", "bottom": "15mm",
+                                                     "left": "12mm", "right": "12mm"})
+                        await p2.close()
+                    if DRY_RUN:
+                        log("dry_run_skip_accept", external_id=ident, aviso_pdf=bool(aviso))
+                        continue
+                    # 2) comparecer (si ya estaba aceptada, el documento sale igual)
+                    try:
+                        await dehu_accept(page, ctx, cert, ident)
+                    except Exception as exc:
+                        log("dehu_accept_error", external_id=ident, error=str(exc)[:200])
+                    doc = await dehu_document(page, sent_ref)
+                    # 3) Telegram: los dos PDFs
+                    cap = (f"<b>DEHú · {H.escape(it['emisor'] or '')}</b>\n"
+                           f"Identificador: <code>{H.escape(ident)}</code>")
+                    if aviso:
+                        await tg_send_document(target, f"aviso_{ident}.pdf", aviso,
+                                               cap + "\n📨 Aviso de cortesía")
+                    if doc:
+                        name, data = doc
+                        await tg_send_document(target, name if name.lower().endswith(".pdf")
+                                               else f"{name}.pdf", data,
+                                               cap + "\n📄 Notificación descargada (comparecida)")
+                        # 4) archivar + marcar abierta
+                        await publish(cfg, "notifications.deh.attach", tenant, {
+                            "pdf_base64": base64.b64encode(data).decode(),
+                            "external_id": ident, "filename": name, "notify_company": True})
+                        await publish(cfg, "notifications.deh.ack", tenant, {
+                            "notification_id": it["id"], "actor": "system:dehu-fetch"})
+                    else:
+                        log("document_missing", external_id=ident)
+                await browser.close()
+
+
+    async def main() -> int:
+        import yaml
+        if not AUTO_TENANTS:
+            log("no_auto_tenants")
+            return 0
+        if not TG_TOKEN and not DRY_RUN:
+            log("missing_telegram_token")
+            return 1
+        cfg = yaml.safe_load(Path(NOTIF_CONFIG).read_text())
+        rc = 0
+        for tenant in AUTO_TENANTS:
+            try:
+                await process_tenant(cfg, tenant)
+            except Exception as exc:
+                log("tenant_failed", tenant=tenant, error=f"{type(exc).__name__}: {str(exc)[:300]}")
+                rc = 1
+        return rc
+
+
+    if __name__ == "__main__":
+        sys.exit(asyncio.run(main()))
+---
+# Certificado de representante de 100WORDS CROSSFIT SL (vence 2027-06-01).
+# Item 1Password k8s-pocharlies/dehu-cert-100words: el .p12 va en base64.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: dehu-cert-alphalink
+  namespace: skirmshop
+spec:
+  refreshInterval: 24h
+  secretStoreRef:
+    name: onepassword
+    kind: ClusterSecretStore
+  target:
+    name: dehu-cert-alphalink
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    template:
+      engineVersion: v2
+      data:
+        alphalink.p12: "{{ .p12 | b64dec }}"
+        alphalink.passphrase: "{{ .passphrase }}"
+  data:
+    - secretKey: p12
+      remoteRef:
+        key: dehu-cert-100words/P12_BASE64
+    - secretKey: passphrase
+      remoteRef:
+        key: dehu-cert-100words/PASSPHRASE
+---
+# Bot de Synapse (el mismo que publica las alertas DEHú): los PDFs van por
+# sendDocument al topic fijo, no por messaging.send (que no adjunta ficheros).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: skirmbooks-telegram-bot
+  namespace: skirmshop
+spec:
+  refreshInterval: 24h
+  secretStoreRef:
+    name: onepassword
+    kind: ClusterSecretStore
+  target:
+    name: skirmbooks-telegram-bot
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: TELEGRAM_BOT_TOKEN
+      remoteRef:
+        key: observability/prod/telegram
+        property: synapse_bot_token
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-dehu-fetch
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-dehu-fetch
+    app.kubernetes.io/part-of: skirmbooks
+    e-dani.com/portfolio: skirmshop
+spec:
+  schedule: "*/10 * * * *"
+  timeZone: Europe/Madrid
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-dehu-fetch
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["amd64"]
+                  - key: topology
+                    operator: NotIn
+                    values: ["lan"]
+          containers:
+          - name: fetch
+            image: harbor.lan.e-dani.com/homelab/skirmbooks-aeat-browser:v0.1.2@sha256:36a82d8a14187cb14fb15fbe3b8aae7b4138206969a6d6f5a3e9d7f162c753a9
+            command: ["python3", "/scripts/dehu_fetch.py"]
+            env:
+            - name: DEHU_AUTO_TENANTS
+              value: alphalink
+            - name: DEHU_CERT_DIR
+              value: /etc/dehu/certs
+            - name: DEHU_MAX_PER_RUN
+              value: "3"
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: skirmbooks-telegram-bot
+                  key: TELEGRAM_BOT_TOKEN
+            resources:
+              requests: { cpu: "100m", memory: "256Mi" }
+              limits: { cpu: "1500m", memory: "1536Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-notifications.yaml
+              subPath: adapter-gestoria-notifications.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+            - name: gmail-sa
+              mountPath: /etc/synapse/gmail
+            - name: certs
+              mountPath: /etc/dehu/certs
+            - name: dshm
+              mountPath: /dev/shm
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-dehu-fetch-script
+          - name: config
+            configMap:
+              name: skirmbooks-notifications-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
+              defaultMode: 292
+          - name: gmail-sa
+            secret:
+              secretName: picker-secrets
+              defaultMode: 292
+              items:
+              - key: GA4_CREDENTIALS_JSON
+                path: sa.json
+          - name: certs
+            secret:
+              secretName: dehu-cert-alphalink
+              defaultMode: 288
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 256Mi

@@ -1948,12 +1948,16 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:deh-20260915-3@sha256:466ea49f4b9ec11ec14d5b5840da88d5007ed80c6936a50e68b4a51b0d9c088d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-1@sha256:7ec26dc333e6c98a7ad55ea5dbc2bdd54e26dd571771001711ea4cb92e3c8257
         args:
         - synapse_adapter_notifications
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_NOTIFICATIONS_CONFIG
           value: /etc/synapse/adapter-gestoria-notifications.yaml
+        # Vía rápida DEHú: escucha email.*.received (push de Gmail vía Synapse)
+        # y lanza notifications.deh.poll al llegar un aviso de correo.gob.es.
+        - name: DEH_FAST_INGEST
+          value: "1"
         - name: SYNAPSE_COMMAND_ACTIONS
           value: alert.create,alert.dispatch,alert.dismiss
         ports:
@@ -2060,7 +2064,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: notifications
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:deh-20260915-3@sha256:466ea49f4b9ec11ec14d5b5840da88d5007ed80c6936a50e68b4a51b0d9c088d
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:dehu-20260923-1@sha256:7ec26dc333e6c98a7ad55ea5dbc2bdd54e26dd571771001711ea4cb92e3c8257
         args:
         - synapse_adapter_notifications
         env:
