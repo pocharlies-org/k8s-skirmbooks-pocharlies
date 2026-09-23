@@ -571,8 +571,9 @@ spec:
   data:
     - secretKey: TELEGRAM_BOT_TOKEN
       remoteRef:
-        key: observability/prod/telegram
-        property: synapse_bot_token
+        # onepasswordSDK: <título del item>/<campo>. El mismo token que
+        # synapse-secrets saca de vault-backend (observability/prod/telegram).
+        key: observability-prod-telegram/synapse_bot_token
 ---
 apiVersion: batch/v1
 kind: CronJob
