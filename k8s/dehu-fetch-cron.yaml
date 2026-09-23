@@ -5,7 +5,7 @@
 # comparece solo en cuanto entra el aviso. Comparecer = ACEPTAR la notificación
 # (arranca plazos); por eso DEHU_AUTO_TENANTS es una lista explícita.
 #
-# Cada 10 min: si no hay notificaciones 'received' sin PDF de esas empresas, el
+# Cada 15 min: si no hay notificaciones 'received' sin PDF de esas empresas, el
 # pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
 # skirmbooks-aeat-browser, la que ya lleva Playwright) + httpx/OpenSSL para la
 # cadena Cl@ve con el certificado → PDF del aviso (el correo, de Gmail) + PDF
@@ -171,22 +171,23 @@ data:
         return None, None
 
 
-    async def saml_chain(sp_fields: dict, *, cert: tuple[str, str],
-                         cookies: list[dict] | None = None) -> str | None:
-        """ServiceProvider → ServiceRedirect(cert) → AuthenticateCitizen(cert) →
-        ResponseRedirect → POST al ACS (cross-site). Devuelve el Location con authData."""
+    async def clave_chain(sp_fields: dict, *, cert: tuple[str, str]) -> tuple[str | None, list[dict]]:
+        """ServiceProvider → ServiceRedirect(cert) → AuthenticateCitizen(cert) por
+        httpx/OpenSSL (RSA-PSS). Devuelve (SAMLResponse, cookies de la pasarela).
+
+        ResponseRedirect y el ACS de DEHú NO van por aquí: el WAF de DEHú corta
+        (ReadError) al cliente httpx desde IPs de datacenter (sauvage, 23-09-2026),
+        así que ese tramo lo hace el propio Chromium (``finish_in_browser``)."""
         form = {"Content-Type": "application/x-www-form-urlencoded"}
         async with httpx.AsyncClient(cert=cert, timeout=60, follow_redirects=False,
                                      headers={"User-Agent": UA,
                                               "Accept-Language": "es-ES,es;q=0.9"}) as c:
-            for ck in cookies or []:
-                c.cookies.set(ck["name"], ck["value"], domain=ck["domain"], path=ck.get("path", "/"))
             r = await c.post(SP_URL, data=sp_fields, headers={
                 **form, "Origin": DEHU, "Referer": DEHU + "/"})
             req = _input_value(r.text, "SAMLRequest")
             log("clave_service_provider", status=r.status_code, saml=bool(req))
             if not req:
-                return None
+                return None, []
             r = await c.post(SR_URL, data={"SAMLRequest": req, "SelectedLanguage": "",
                                            "SelectedIdP": "AFIRMA"},
                              headers={**form, "Origin": "https://pasarela.clave.gob.es",
@@ -197,21 +198,29 @@ data:
                                       "Referer": SR_URL})
             resp = _input_value(r.text, "SAMLResponse")
             log("clave_authenticate_citizen", status=r.status_code, saml=bool(resp))
-            if not resp:
-                return None
-            r = await c.post(RR_URL, data={"SAMLResponse": resp}, headers={
-                **form, "Origin": "https://pasarela-ident.clave.gob.es", "Referer": AC_URL})
-            acs_url, acs_sr = _dehu_form(r.text)
-            log("clave_response_redirect", status=r.status_code, acs=bool(acs_sr))
-            if not acs_sr:
-                return None
-            r = await c.post(acs_url, data={"SAMLResponse": acs_sr}, headers={
-                **form, "Origin": "https://pasarela.clave.gob.es", "Referer": RR_URL,
-                "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Site": "cross-site"})
-            loc = r.headers.get("location")
-            log("dehu_acs", status=r.status_code, location=bool(loc))
-            return loc
+            cookies = [{"name": ck.name, "value": ck.value,
+                        "domain": ck.domain or "pasarela.clave.gob.es",
+                        "path": ck.path or "/", "secure": True}
+                       for ck in c.cookies.jar]
+            return resp, cookies
+
+
+    async def finish_in_browser(page, ctx, saml_response: str, cookies: list[dict]) -> bool:
+        """ResponseRedirect + ACS en el navegador: se le pasan las cookies de la
+        pasarela y un form con el SAMLResponse; la pasarela devuelve el form
+        auto-enviado al ACS de DEHú y Chromium lo sigue solo (cabeceras y cookies
+        de navegador de verdad) hasta la URL con authData."""
+        pc = [ck for ck in cookies if "clave.gob.es" in ck["domain"]]
+        if pc:
+            await ctx.add_cookies(pc)
+        await page.set_content(
+            f'<form id="rr" method="post" action="{RR_URL}">'
+            f'<input type="hidden" name="SAMLResponse" value="{H.escape(saml_response, quote=True)}">'
+            "</form>")
+        async with page.expect_navigation(url=lambda u: u.startswith(DEHU), timeout=90000):
+            await page.evaluate("document.getElementById('rr').submit()")
+        log("dehu_acs_browser", url=page.url.split("?")[0][:100], auth="authData" in page.url)
+        return page.url.startswith(DEHU)
 
 
     # ── DEHú en Chromium ───────────────────────────────────────────────────────
@@ -247,11 +256,10 @@ data:
         if not cap:
             log("dehu_login_no_saml_capture")
             return False
-        loc = await saml_chain(cap["fields"], cert=cert)
-        if not loc:
+        resp, cookies = await clave_chain(cap["fields"], cert=cert)
+        if not resp or not await finish_in_browser(page, page.context, resp, cookies):
             return False
-        await page.goto(loc, wait_until="domcontentloaded")
-        for _ in range(20):
+        for _ in range(30):
             await page.wait_for_timeout(1000)
             if await page.evaluate("localStorage.getItem('access_token')"):
                 log("dehu_login_ok")
@@ -285,13 +293,11 @@ data:
         if not m:
             log("dehu_accept_no_appearance_saml")
             return False
-        cookies = await ctx.cookies(DEHU)
-        loc = await saml_chain({"SAMLRequest": H.unescape(m.group(1)), "forcedIdP": "none",
-                                "excludedIdPList": "", "allowLegalPerson": "1"},
-                               cert=cert, cookies=cookies)
-        if not loc:
+        resp, cookies = await clave_chain({"SAMLRequest": H.unescape(m.group(1)), "forcedIdP": "none",
+                                           "excludedIdPList": "", "allowLegalPerson": "1"},
+                                          cert=cert)
+        if not resp or not await finish_in_browser(page, ctx, resp, cookies):
             return False
-        await page.goto(loc, wait_until="domcontentloaded")
         await page.wait_for_timeout(10000)
         ok = "realized" in page.url or "resguardo" in (await page.inner_text("body")).lower()
         log("dehu_accept", ok=ok, url=page.url[:120])
@@ -585,7 +591,8 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
     e-dani.com/portfolio: skirmshop
 spec:
-  schedule: "*/10 * * * *"
+  # Cada 15 min: con varios logins seguidos el WAF de DEHú corta la IP un rato.
+  schedule: "*/15 * * * *"
   timeZone: Europe/Madrid
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
