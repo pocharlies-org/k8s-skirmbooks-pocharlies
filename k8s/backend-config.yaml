@@ -199,6 +199,11 @@ data:
       # Desde el 23-09-2026 DEHú manda los avisos de 100WORDS aquí (cambiado en
       # "Datos de contacto" de DEHú; Synapse lo recibe además por push).
       - me@e-dani.com
+      # Comparecer y descargar solo cada notificación nueva (CronJob
+      # skirmbooks-dehu-fetch). auto_fetch_tenants vacío = todas las empresas
+      # con certificado montado en dehu-cert-* (hoy alphalink / 100WORDS).
+      auto_fetch: true
+      auto_fetch_tenants: []
       lookback_days: 12
       gmail_sa_path: /etc/synapse/gmail/sa.json
       sender_mailbox: info@e-dani.com
