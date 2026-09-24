@@ -1326,12 +1326,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1461,12 +1461,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1599,12 +1599,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1721,12 +1721,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1843,12 +1843,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -2078,12 +2078,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-app
+              name: skirmshop-drive-s3-skirmbooks
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics

@@ -182,12 +182,12 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-app
+                  name: skirmshop-drive-s3-skirmbooks
                   key: AWS_ACCESS_KEY_ID
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-app
+                  name: skirmshop-drive-s3-skirmbooks
                   key: AWS_SECRET_ACCESS_KEY
             # OCR (facturas recibidas) → in-cluster LiteLLM. The sauvage-hosted pod
             # cannot reach the x86 LAN default (192.168.50.142); use the cluster svc.
