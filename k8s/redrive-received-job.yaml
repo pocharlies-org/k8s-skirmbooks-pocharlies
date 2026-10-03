@@ -1,0 +1,133 @@
+# INFRA-213 (INFRA-210 C2) — Job del redriver de facturas `received`.
+#
+# Corre `python -m synapse_adapter_invoicing.redrive_received` (llegó en el PR #28,
+# imagen ingest-event-20261003) sobre la allowlist del spec: relee el PDF del PDF
+# desde S3 (InvoiceArtifactStore, bucket skirmshop-drive) y publica el evento que
+# dispara la cadena OCR→classify. El módulo (adapters/invoicing/src/…/redrive_received.py):
+#   * solo toca la allowlist explícita REDRIVE_INVOICE_IDS;
+#   * REDRIVE_DRY_RUN por defecto "1": informa sin publicar (aquí dry-run = "1");
+#   * TENANT por FACTURAS_TENANT (set_config app.tenant_id, RLS).
+#
+# Reutiliza el patrón del Deployment skirmbooks-invoicing-ocr (mismo configmap y
+# mismos credenciales proyectados) y del Job de migraciones (restartPolicy Never,
+# backoffLimit 0, encaje amd64/edge, harbor-pull).
+#
+# DRY-RUN primero, real después (ORDEN del spec):
+#   1. Al mergear esto, ArgoCD crea el Job y corre el DRY-RUN (no publica nada).
+#      Log: kubectl -n skirmshop logs job/skirmbooks-redrive-received
+#      Esperado (nota-sre-fase1-prep.md §4): redrained(dry) ×2 (9d32d0e3, 9e877220),
+#      skipped ×3 (e203aaaf ya classified; 75b31380 y 9bb58ac7 fila borrada).
+#   2. Para la pasada real: PR que cambie REDRIVE_DRY_RUN a "0" Y renombre el Job
+#      (p. ej. skirmbooks-redrive-received-run-1) — .spec.template es inmutable y
+#      ArgoCD no recrea un Job existente por cambio de spec; un nombre nuevo lo
+#      crea y lo ejecuta una sola vez. (Alternativa IT: borrar el Job y resync.)
+#   3. Idempotencia: las ya classified salen `skipped`; repetir es inocuo.
+#
+# NO es hook de ArgoCD a propósito: es un recurso normal, se ejecuta al crearse
+# y queda su log para auditoría (sin hook-delete-policy → no se relanza en cada
+# sync).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: skirmbooks-redrive-received
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/name: skirmbooks
+    app.kubernetes.io/component: redrive-received
+    e-dani.com/portfolio: skirmshop
+    e-dani.com/part-of: skirmbooks
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skirmbooks
+        app.kubernetes.io/component: redrive-received
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: harbor-pull
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                  - key: topology
+                    operator: NotIn
+                    values:
+                      - lan
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      containers:
+        - name: redrive
+          image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
+          command: ["python", "-m", "synapse_adapter_invoicing.redrive_received"]
+          env:
+            # Defaults del módulo: GESTORIA_CFG=/etc/synapse/adapter-gestoria-invoicing.yaml,
+            # GESTORIA_CREDS=/etc/synapse/credentials (montajes abajo, como en
+            # skirmbooks-invoicing-ocr).
+            - name: FACTURAS_TENANT
+              value: skirmshop
+            - name: REDRIVE_DRY_RUN
+              value: "1"  # → "0" en el Job de la pasada real (ver cabecera)
+            - name: REDRIVE_INVOICE_IDS
+              value: >-
+                75b31380-fd1d-4fb1-afa7-c04e19930598,e203aaaf-e972-400c-836a-551dfdf3cea2,9d32d0e3-86e6-4452-8255-67e280d50867,9e877220-a4a0-4711-a89a-78883deb8a39,9bb58ac7-2403-45dc-946b-ff88fdb7f281
+            # S3 (InvoiceArtifactStore) — mismo secret que el adapter invoicing-ocr
+            # (clave propia MinIO, 4ec072d).
+            - name: S3_ENDPOINT
+              value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+            - name: S3_BUCKET
+              value: skirmshop-drive
+            - name: S3_REGION
+              value: us-east-1
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: skirmshop-drive-s3-skirmbooks
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: skirmshop-drive-s3-skirmbooks
+                  key: AWS_SECRET_ACCESS_KEY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+              readOnly: true
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: skirmbooks-invoicing-config
+            items:
+              - key: adapter-gestoria-invoicing.yaml
+                path: adapter-gestoria-invoicing.yaml
+        - name: credentials
+          projected:
+            defaultMode: 292
+            sources:
+              - secret:
+                  name: skirmbooks-backend-secrets
+              - secret:
+                  name: skirmbooks-provider-credentials
+                  optional: true
