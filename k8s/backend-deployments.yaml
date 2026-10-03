@@ -1309,7 +1309,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-2@sha256:8c3a7b6f8893754dc24df9f8eb72d779a869f473c899c24aab99e326e2de745e
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1444,7 +1444,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-2@sha256:8c3a7b6f8893754dc24df9f8eb72d779a869f473c899c24aab99e326e2de745e
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1582,7 +1582,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-2@sha256:8c3a7b6f8893754dc24df9f8eb72d779a869f473c899c24aab99e326e2de745e
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1704,7 +1704,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-2@sha256:8c3a7b6f8893754dc24df9f8eb72d779a869f473c899c24aab99e326e2de745e
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
         args:
         - synapse_adapter_invoicing
         env:
@@ -1826,7 +1826,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-2@sha256:8c3a7b6f8893754dc24df9f8eb72d779a869f473c899c24aab99e326e2de745e
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
         args:
         - synapse_adapter_invoicing
         env:

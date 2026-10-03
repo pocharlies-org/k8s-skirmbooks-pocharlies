@@ -8,8 +8,8 @@
 
 | cliente | repositorio / ruta | versión desplegada | cómo se despliega |
 |---|---|---|---|
-| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `ingest-event-20261003` (`@sha256:f730b490…`; migraciones PreSync con el mismo tag, D12) | ArgoCD app `skirmbooks` |
-| Backend y workers (`skirmbooks-backend`, banca, facturas, clasificador, deh/dehu, aeat-browser) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **mezcla de tags**: `ingest-event-20261003-2` (todo el adapter invoicing: deployments fast/ocr/classify/posting/issued + `patterns-cron.yaml`; lleva el fix del flush del redriver #41), `audit-ocr-20260807` (demás, ~45 usos), `casillas-12-13-20260814`, `guard-ocr-isp-doctype-20260818` (accounting-derived), `dehu-20260923-2` | ídem |
+| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `ingest-event-20261003-3` (`@sha256:e6009bc2…`; migraciones PreSync con el mismo tag, D12) | ArgoCD app `skirmbooks` |
+| Backend y workers (`skirmbooks-backend`, banca, facturas, clasificador, deh/dehu, aeat-browser) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **mezcla de tags**: `ingest-event-20261003-3` (todo el adapter invoicing: deployments fast/ocr/classify/posting/issued + `patterns-cron.yaml`; el Job redriver del manifiesto sigue clavado en -2, intocable a propósito), `audit-ocr-20260807` (demás, ~45 usos), `casillas-12-13-20260814`, `guard-ocr-isp-doctype-20260818` (accounting-derived), `dehu-20260923-2` | ídem |
 | CronJobs (accounting-sweep, banking-daily-sync, klarna, paypal, cobros/facturas digest, deh-poll…) | `k8s/*-cron.yaml` | mismas imágenes | ídem |
 
 Clientes del producto: web (UI) y el MCP/tools de Skirmbooks vía `/skirmshop-plugins` del AgentGateway (`skirmbooks_reconcile_*`).
