@@ -1309,7 +1309,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:supplier-match-20260814@sha256:48157a8bb7b302e23812733feaaa0a217b9a938378fcc7e4844af38740392274
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
         args:
         - synapse_adapter_invoicing
         env:
@@ -1444,7 +1444,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:guard-ocr-isp-doctype-20260818@sha256:a68e7cb5a78aa1aff92a1ed10276e32ff3cdc1597388d55cbeea28b80514a459
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
         args:
         - synapse_adapter_invoicing
         env:
@@ -1582,7 +1582,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
         args:
         - synapse_adapter_invoicing
         env:
@@ -1704,7 +1704,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
         args:
         - synapse_adapter_invoicing
         env:
@@ -1826,7 +1826,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
         args:
         - synapse_adapter_invoicing
         env:

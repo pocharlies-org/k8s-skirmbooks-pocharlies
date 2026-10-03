@@ -83,7 +83,7 @@ spec:
           emptyDir: {}
       containers:
         - name: apply-migrations
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-migrations@sha256:2576de95d2f6e5804e5c26207e591db709792bd67f69f59a09b494a26238d761  # deh-20260916-2
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-migrations@sha256:dcd789a015c5849343624c22415d5c1c72b0846dea2a27c2a320fae076712be3  # ingest-event-20261003
           imagePullPolicy: IfNotPresent
           # command explícito aunque la imagen fije ENTRYPOINT (D12): el Job no
           # depende de cómo el Dockerfile declare la entrada.
