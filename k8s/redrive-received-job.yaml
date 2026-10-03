@@ -1,35 +1,34 @@
-# INFRA-213 (INFRA-210 C2) — Job del redriver de facturas `received`.
+# INFRA-213 (INFRA-210 C2) — Job del redriver de facturas `received` — PASADA REAL.
 #
 # Corre `python -m synapse_adapter_invoicing.redrive_received` (llegó en el PR #28,
-# imagen ingest-event-20261003) sobre la allowlist del spec: relee el PDF del PDF
-# desde S3 (InvoiceArtifactStore, bucket skirmshop-drive) y publica el evento que
-# dispara la cadena OCR→classify. El módulo (adapters/invoicing/src/…/redrive_received.py):
+# imagen ingest-event-20261003) sobre la allowlist del spec: relee el PDF desde S3
+# (InvoiceArtifactStore, bucket skirmshop-drive) y publica el evento que dispara la
+# cadena OCR→classify. El módulo (adapters/invoicing/src/…/redrive_received.py):
 #   * solo toca la allowlist explícita REDRIVE_INVOICE_IDS;
-#   * REDRIVE_DRY_RUN por defecto "1": informa sin publicar (aquí dry-run = "1");
+#   * REDRIVE_DRY_RUN "0" → publica (la pasada dry-run ya se ejecutó y cuadra con
+#     lo esperado: redrained(dry) ×2 —9d32d0e3, 9e877220— y skipped ×3 —e203aaaf
+#     classified; 75b31380 y 9bb58ac7 fila borrada—, ver log del Job
+#     skirmbooks-redrive-received y nota-sre-fase1-prep.md §4);
 #   * TENANT por FACTURAS_TENANT (set_config app.tenant_id, RLS).
 #
 # Reutiliza el patrón del Deployment skirmbooks-invoicing-ocr (mismo configmap y
 # mismos credenciales proyectados) y del Job de migraciones (restartPolicy Never,
 # backoffLimit 0, encaje amd64/edge, harbor-pull).
 #
-# DRY-RUN primero, real después (ORDEN del spec):
-#   1. Al mergear esto, ArgoCD crea el Job y corre el DRY-RUN (no publica nada).
-#      Log: kubectl -n skirmshop logs job/skirmbooks-redrive-received
-#      Esperado (nota-sre-fase1-prep.md §4): redrained(dry) ×2 (9d32d0e3, 9e877220),
-#      skipped ×3 (e203aaaf ya classified; 75b31380 y 9bb58ac7 fila borrada).
-#   2. Para la pasada real: PR que cambie REDRIVE_DRY_RUN a "0" Y renombre el Job
-#      (p. ej. skirmbooks-redrive-received-run-1) — .spec.template es inmutable y
-#      ArgoCD no recrea un Job existente por cambio de spec; un nombre nuevo lo
-#      crea y lo ejecuta una sola vez. (Alternativa IT: borrar el Job y resync.)
-#   3. Idempotencia: las ya classified salen `skipped`; repetir es inocuo.
+# Nombre NUEVO (…-real-20261003): .spec.template es inmutable y ArgoCD no recrea
+# un Job existente por cambio de spec; este manifiesto define SOLO el Job real (el
+# dry-run viejo queda fuera del repo; su objeto ya Completed se podrá podar a
+# mano o con prune). ttlSecondsAfterFinished 7 días: el Job y su log sobreviven
+# la verificación de qa y luego se autorrecoloca solo (no queda huérfano).
+# Idempotencia: las ya classified salen `skipped`; repetir es inocuo.
 #
-# NO es hook de ArgoCD a propósito: es un recurso normal, se ejecuta al crearse
-# y queda su log para auditoría (sin hook-delete-policy → no se relanza en cada
-# sync).
+# Esperado (SRE §4): redrained ×2 (9d32d0e3, 9e877220) + skipped ×3 (75b31380 y
+# 9bb58ac7 sin fila; e203aaaf ya classified), 0 irrecuperable.
+# NO es hook de ArgoCD: recurso normal, corre al crearse el sync.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: skirmbooks-redrive-received
+  name: skirmbooks-redrive-received-real-20261003
   namespace: skirmshop
   labels:
     app.kubernetes.io/name: skirmbooks
@@ -39,6 +38,7 @@ metadata:
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 604800  # 7 días: log legible por qa, luego autolimpieza
   template:
     metadata:
       labels:
@@ -79,7 +79,7 @@ spec:
             - name: FACTURAS_TENANT
               value: skirmshop
             - name: REDRIVE_DRY_RUN
-              value: "1"  # → "0" en el Job de la pasada real (ver cabecera)
+              value: "0"  # pasada real: publica el evento de re-drive
             - name: REDRIVE_INVOICE_IDS
               value: >-
                 75b31380-fd1d-4fb1-afa7-c04e19930598,e203aaaf-e972-400c-836a-551dfdf3cea2,9d32d0e3-86e6-4452-8255-67e280d50867,9e877220-a4a0-4711-a89a-78883deb8a39,9bb58ac7-2403-45dc-946b-ff88fdb7f281
