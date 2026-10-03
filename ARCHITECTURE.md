@@ -8,8 +8,8 @@
 
 | cliente | repositorio / ruta | versión desplegada | cómo se despliega |
 |---|---|---|---|
-| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `harbor.lan.e-dani.com/homelab/skirmbooks-ui:<tag>` (README: `k8s-20260523-legacy`; tag vivo **pendiente**) | ArgoCD app `skirmbooks` |
-| Backend y workers (`skirmbooks-backend`, banca, facturas, clasificador, deh/dehu, aeat-browser) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **mezcla de tags**: `audit-ocr-20260807` (la mayoría, ~50 usos), `casillas-12-13-20260814`, `guard-ocr-isp-doctype-20260818`, `dehu-20260923-2` | ídem |
+| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `ingest-event-20261003` (`@sha256:f730b490…`; migraciones PreSync con el mismo tag, D12) | ArgoCD app `skirmbooks` |
+| Backend y workers (`skirmbooks-backend`, banca, facturas, clasificador, deh/dehu, aeat-browser) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **mezcla de tags**: `ingest-event-20261003` (todo el adapter invoicing: deployments fast/ocr/classify/posting/issued + `patterns-cron.yaml`), `audit-ocr-20260807` (demás, ~45 usos), `casillas-12-13-20260814`, `guard-ocr-isp-doctype-20260818` (accounting-derived), `dehu-20260923-2` | ídem |
 | CronJobs (accounting-sweep, banking-daily-sync, klarna, paypal, cobros/facturas digest, deh-poll…) | `k8s/*-cron.yaml` | mismas imágenes | ídem |
 
 Clientes del producto: web (UI) y el MCP/tools de Skirmbooks vía `/skirmshop-plugins` del AgentGateway (`skirmbooks_reconcile_*`).

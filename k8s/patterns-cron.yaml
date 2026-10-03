@@ -40,7 +40,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: patterns-sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003@sha256:272a403892d49b4259b5465e6c7388256690d44ab3505962b469b09568f5a7ce
             command: ["python", "-m", "synapse_adapter_invoicing.patterns_sweep"]
             env:
             - name: FACTURAS_TENANT
