@@ -429,7 +429,7 @@ spec:
   template:
     metadata:
       annotations:
-        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
+        skirmbooks.e-dani.com/config-revision: alphalink-tenants-20261010
       labels:
         app: skirmbooks-banking-psd2
         app.kubernetes.io/name: skirmbooks-banking-psd2
@@ -535,7 +535,7 @@ spec:
   template:
     metadata:
       annotations:
-        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
+        skirmbooks.e-dani.com/config-revision: alphalink-tenants-20261010
       labels:
         app: skirmbooks-banking-imports
         app.kubernetes.io/name: skirmbooks-banking-imports
@@ -641,7 +641,7 @@ spec:
   template:
     metadata:
       annotations:
-        skirmbooks.e-dani.com/config-revision: moreno-tenants-20260713
+        skirmbooks.e-dani.com/config-revision: alphalink-tenants-20261010
       labels:
         app: skirmbooks-banking-reconcile
         app.kubernetes.io/name: skirmbooks-banking-reconcile
