@@ -1309,14 +1309,14 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-llm-fallo-20261013@sha256:84cd90f6d9ae556efbdd843b4fd57f546e165d5e35f924a86453b97aa6f723a4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:cancelada-20261013@sha256:4ea5e523ee944f78f2d31434faf7d7f332c437b516a1570263411d108c4e24fe
         args:
         - synapse_adapter_invoicing
         env:
         - name: SYNAPSE_ADAPTER_GESTORIA_INVOICING_CONFIG
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
-          value: incoming.ingest,received.confirm,received.reject,orphan.request_invoice,supplier.upsert,customer.upsert,invoice_request.draft_compose,invoice_request.draft_update,invoice_request.draft_prompt_edit,invoice_request.draft_send,invoice_request.draft_delete,providers.verify_account,ovh.sync_transactions,ovh.download_invoice,amazon.sync_transactions,amazon.download_invoice,portal.download_request,portal.download_result
+          value: incoming.ingest,received.confirm,received.reject,received.cancel,orphan.request_invoice,supplier.upsert,customer.upsert,invoice_request.draft_compose,invoice_request.draft_update,invoice_request.draft_prompt_edit,invoice_request.draft_send,invoice_request.draft_delete,providers.verify_account,ovh.sync_transactions,ovh.download_invoice,amazon.sync_transactions,amazon.download_invoice,portal.download_request,portal.download_result
         - name: SYNAPSE_RMQ_MGMT_URL
           valueFrom:
             secretKeyRef:
@@ -1459,7 +1459,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-llm-fallo-20261013@sha256:84cd90f6d9ae556efbdd843b4fd57f546e165d5e35f924a86453b97aa6f723a4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:cancelada-20261013@sha256:4ea5e523ee944f78f2d31434faf7d7f332c437b516a1570263411d108c4e24fe
         args:
         - synapse_adapter_invoicing
         env:
@@ -1612,7 +1612,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-llm-fallo-20261013@sha256:84cd90f6d9ae556efbdd843b4fd57f546e165d5e35f924a86453b97aa6f723a4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:cancelada-20261013@sha256:4ea5e523ee944f78f2d31434faf7d7f332c437b516a1570263411d108c4e24fe
         args:
         - synapse_adapter_invoicing
         env:
@@ -1749,7 +1749,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-llm-fallo-20261013@sha256:84cd90f6d9ae556efbdd843b4fd57f546e165d5e35f924a86453b97aa6f723a4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:cancelada-20261013@sha256:4ea5e523ee944f78f2d31434faf7d7f332c437b516a1570263411d108c4e24fe
         args:
         - synapse_adapter_invoicing
         env:
@@ -1886,7 +1886,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-llm-fallo-20261013@sha256:84cd90f6d9ae556efbdd843b4fd57f546e165d5e35f924a86453b97aa6f723a4
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:cancelada-20261013@sha256:4ea5e523ee944f78f2d31434faf7d7f332c437b516a1570263411d108c4e24fe
         args:
         - synapse_adapter_invoicing
         env:
