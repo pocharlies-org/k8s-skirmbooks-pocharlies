@@ -107,7 +107,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: poll
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:casillas-12-13-20260814@sha256:30e7ed63c3dbdfb79e5e99d4b6810ac7b958ba57244c8e28ef773d12bd2fe450
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-local-20261013@sha256:cc95c7108ad949501f09f9e49b65c9047c370659e1b599b6aee998c2bdfa0382
             command: ["python", "/scripts/poll.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
@@ -168,7 +168,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: poll
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:casillas-12-13-20260814@sha256:30e7ed63c3dbdfb79e5e99d4b6810ac7b958ba57244c8e28ef773d12bd2fe450
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-local-20261013@sha256:cc95c7108ad949501f09f9e49b65c9047c370659e1b599b6aee998c2bdfa0382
             command: ["python", "/scripts/poll.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
@@ -229,7 +229,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: poll
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:casillas-12-13-20260814@sha256:30e7ed63c3dbdfb79e5e99d4b6810ac7b958ba57244c8e28ef773d12bd2fe450
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:ocr-local-20261013@sha256:cc95c7108ad949501f09f9e49b65c9047c370659e1b599b6aee998c2bdfa0382
             command: ["python", "/scripts/poll.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
