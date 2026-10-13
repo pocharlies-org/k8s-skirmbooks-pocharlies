@@ -1309,7 +1309,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bindings-check-20261013@sha256:ccbdee1018014f06fd5302b6ce7b0406b04cca5412741737368436be50dcb7fd
         args:
         - synapse_adapter_invoicing
         env:
@@ -1317,6 +1317,21 @@ spec:
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
           value: incoming.ingest,received.confirm,received.reject,orphan.request_invoice,supplier.upsert,customer.upsert,invoice_request.draft_compose,invoice_request.draft_update,invoice_request.draft_prompt_edit,invoice_request.draft_send,invoice_request.draft_delete,providers.verify_account,ovh.sync_transactions,ovh.download_invoice,amazon.sync_transactions,amazon.download_invoice,portal.download_request,portal.download_result
+        - name: SYNAPSE_RMQ_MGMT_URL
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq
+              key: host
+        - name: SYNAPSE_RMQ_MGMT_USER
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: username
+        - name: SYNAPSE_RMQ_MGMT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: password
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -1444,7 +1459,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bindings-check-20261013@sha256:ccbdee1018014f06fd5302b6ce7b0406b04cca5412741737368436be50dcb7fd
         args:
         - synapse_adapter_invoicing
         env:
@@ -1452,6 +1467,21 @@ spec:
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
           value: ocr.extract,email_search.start,email_search.reply,mailbox.verify,patterns.analyze,candidate.reconcile
+        - name: SYNAPSE_RMQ_MGMT_URL
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq
+              key: host
+        - name: SYNAPSE_RMQ_MGMT_USER
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: username
+        - name: SYNAPSE_RMQ_MGMT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: password
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -1582,7 +1612,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bindings-check-20261013@sha256:ccbdee1018014f06fd5302b6ce7b0406b04cca5412741737368436be50dcb7fd
         args:
         - synapse_adapter_invoicing
         env:
@@ -1590,6 +1620,21 @@ spec:
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
           value: classify
+        - name: SYNAPSE_RMQ_MGMT_URL
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq
+              key: host
+        - name: SYNAPSE_RMQ_MGMT_USER
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: username
+        - name: SYNAPSE_RMQ_MGMT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: password
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -1704,7 +1749,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bindings-check-20261013@sha256:ccbdee1018014f06fd5302b6ce7b0406b04cca5412741737368436be50dcb7fd
         args:
         - synapse_adapter_invoicing
         env:
@@ -1712,6 +1757,21 @@ spec:
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
           value: posting.post
+        - name: SYNAPSE_RMQ_MGMT_URL
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq
+              key: host
+        - name: SYNAPSE_RMQ_MGMT_USER
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: username
+        - name: SYNAPSE_RMQ_MGMT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: password
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
@@ -1826,7 +1886,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: invoicing
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:ingest-event-20261003-3@sha256:5a407c76efdc5e61430595ae39110129af563a1449229dcba9d92aa8a002ea1a
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:bindings-check-20261013@sha256:ccbdee1018014f06fd5302b6ce7b0406b04cca5412741737368436be50dcb7fd
         args:
         - synapse_adapter_invoicing
         env:
@@ -1834,6 +1894,21 @@ spec:
           value: /etc/synapse/adapter-gestoria-invoicing.yaml
         - name: SYNAPSE_COMMAND_ACTIONS
           value: issued.create,issued.import,received.import
+        - name: SYNAPSE_RMQ_MGMT_URL
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq
+              key: host
+        - name: SYNAPSE_RMQ_MGMT_USER
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: username
+        - name: SYNAPSE_RMQ_MGMT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-keda-rabbitmq-auth
+              key: password
         - name: S3_ENDPOINT
           value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
         - name: S3_BUCKET
