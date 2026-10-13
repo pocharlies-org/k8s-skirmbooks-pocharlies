@@ -120,21 +120,6 @@ data:
       vision_model: tooling
       timeout_s: 120
       max_images_per_pdf: 8
-    vision_studio:
-      enabled: true
-      base_url: http://dgx-dashboard-backend.control-nexus.svc.cluster.local:9002
-      # 60 s, medido en producción el 2026-08-07: el escalado encola bien en el
-      # Vision Studio (queue_len sube, enabled pasa a 1) pero `vllm-vision-deep-dgx2`
-      # se queda a 0 réplicas — no lo escala KEDA sino el árbitro de GPU de
-      # dgx-infra (anotaciones gpu.dgx-infra/*), que no está reaccionando al lease.
-      # Con 900 s los 6 consumidores se quedaban bloqueados esperando y la cola de
-      # OCR no bajaba ni un mensaje en 10 minutos. Con 60 s el escalado se intenta,
-      # falla rápido y se conserva el resultado de la ruta rápida (que ya es visión
-      # real). En cuanto el workload vuelva a levantarse, esto sigue funcionando sin
-      # tocar nada: súbelo entonces.
-      hq_timeout_s: 60
-      hq_poll_s: 5
-      confidence_threshold: 0.85
     storage:
       backend: s3
       endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
