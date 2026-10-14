@@ -120,7 +120,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: paypal-sync
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:sii-bajas-20261014@sha256:408bf340fda87488869b4af9e4d0696e18d8799b1e73c249c7cd06e977ade95b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:oss-noop-pais-20261014@sha256:a6a94cce4a58d357d9fc92c39b60eaca2a08f38b54344a1dc83cd7f7f35a3268
             command: ["python", "/scripts/paypal-sync.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
