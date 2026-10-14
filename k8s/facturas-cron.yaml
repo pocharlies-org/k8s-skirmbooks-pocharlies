@@ -55,7 +55,7 @@ spec:
             # ni la exclusión journal_lines en PENDING_GASTOS_SQL, por lo que los gastos ya
             # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
             # Imagen ya en prod (skirmbooks-accounting-derived).
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:oss-devengo-20261014@sha256:36595f4552e279697518d0b4fdc4ed4f4a2a58637e1c5c166cb48a8ad196ec0e
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:borrador-303-20261014@sha256:32f4886112619790411f4143b1f520f38583bcf21ac8ecc2b64f455ce75dfb99
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
@@ -120,7 +120,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-weekly
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:oss-devengo-20261014@sha256:36595f4552e279697518d0b4fdc4ed4f4a2a58637e1c5c166cb48a8ad196ec0e
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:borrador-303-20261014@sha256:32f4886112619790411f4143b1f520f38583bcf21ac8ecc2b64f455ce75dfb99
             command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
             env:
             - name: FACTURAS_TENANT
@@ -182,7 +182,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:oss-devengo-20261014@sha256:36595f4552e279697518d0b4fdc4ed4f4a2a58637e1c5c166cb48a8ad196ec0e
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:borrador-303-20261014@sha256:32f4886112619790411f4143b1f520f38583bcf21ac8ecc2b64f455ce75dfb99
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
