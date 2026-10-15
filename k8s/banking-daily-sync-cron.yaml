@@ -124,7 +124,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: daily-sync
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:casillas-303-20261015@sha256:ed93713d3e88f33563c796a84b5af098e871439a4a07c948ca3edbb58d9f6d0a
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:compras-nif-repost-20261015@sha256:b7421d9c233bdfd61a7eaca20befbd888ab1d991907c76b7a4bea2cabed7ca59
             command: ["python", "/scripts/daily_sync.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
