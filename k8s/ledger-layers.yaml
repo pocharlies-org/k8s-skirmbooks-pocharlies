@@ -12,7 +12,8 @@
 #
 # NO lleva imagen propia: va dentro de `skirmbooks-backend` como los 11 adapters, y
 # arranca con args porque el ENTRYPOINT de esa imagen es `python -m`. Así comparte el
-# ConfigMap y el fichero de credenciales de accounting y no añade ni un secreto nuevo.
+# ConfigMap y el fichero de credenciales de accounting. Su único secreto propio es el
+# token de la API: k8s/ledger-layers-secrets-external.yaml (SKIRM-182).
 #
 # ACTIVO desde 2026-07-31 con la imagen ledger-layers-20260731, construida desde
 # main@4b03a29 (el primer commit cuyo Dockerfile incluye el servicio: la imagen anterior
@@ -92,8 +93,17 @@ spec:
           value: /etc/synapse/adapter-gestoria-accounting.yaml
         - name: SYNAPSE_CREDENTIALS_DIR
           value: /etc/synapse/credentials
-        - name: DEFAULT_TENANT
-          value: skirmshop
+        # SKIRM-182 C1.5: token de servicio (Authorization: Bearer) para todo lo que
+        # toca datos; sin él la API está cerrada (503) y /healthz sigue dando 200, así
+        # que se marca `optional` — un Secret sin sembrar no impide que el pod nazca.
+        # `DEFAULT_TENANT` se va con este commit: el código ya no lo lee y una llamada
+        # sin X-Tenant-Id se niega con 400 en vez de caer en skirmshop.
+        - name: LEDGER_LAYERS_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: skirmbooks-ledger-layers-secrets
+              key: LEDGER_LAYERS_API_TOKEN
+              optional: true
         # Un diario trae 8-10 mil apuntes por ejercicio: sin tope, un GET sin filtros
         # devolvería el año completo.
         - name: MAX_PAGE_SIZE
@@ -153,9 +163,11 @@ spec:
           secretName: skirmbooks-backend-secrets
           defaultMode: 292
 ---
-# Sin Ingress ni HTTPRoute a propósito: esta API lee y escribe contabilidad, y no tiene
-# autenticación propia (el tenant llega por cabecera X-Tenant-Id, que no es una
-# credencial). Se consume desde dentro del clúster — la UI o los agentes — o a mano con
+# Sin Ingress ni HTTPRoute a propósito: esta API lee y escribe contabilidad. Desde
+# SKIRM-182 exige `Authorization: Bearer <LEDGER_LAYERS_API_TOKEN>` y `X-Tenant-Id`
+# en toda ruta de datos (401 sin token, 400 sin empresa, 503 si el token no está
+# sembrado); solo /healthz, /docs y /openapi.json están abiertas. Se consume desde
+# dentro del clúster — la UI o los agentes — o a mano con
 #   kubectl -n skirmshop port-forward svc/skirmbooks-ledger-layers 8091:80
 # y entonces el Swagger queda en http://localhost:8091/docs
 # Si algún día se expone al exterior, va detrás del oauth2-proxy como skirmbooks-ui,
