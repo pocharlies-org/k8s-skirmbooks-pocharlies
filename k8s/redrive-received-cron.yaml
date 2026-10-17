@@ -19,10 +19,10 @@
 # pipeline, hace falta otro CronJob con FACTURAS_TENANT=moreno (patrón
 # facturas-digest-moreno-cron.yaml).
 #
-# DRY-RUN a propósito (REDRIVE_DRY_RUN="1", el default del módulo): el Job informa
-# en el log y NO escribe ni publica — es lo que pide C2.5 («el CronJob de redrive
-# no re-emetiendo nada en claro»). Que rescate de verdad (C2.3b) es poner este
-# valor a "0": una línea, decisión del CTO.
+# Rescata de verdad (REDRIVE_DRY_RUN="0", C2.3b): una `cancelled` con motivo
+# «OCR cancelado…» y más de 30 min vuelve a `received` y re-entra en el pipeline.
+# Se puso en "0" tras ver la primera pasada en dry-run (17-10, n=0). Para solo
+# informar sin escribir, "1".
 # REDRIVE_INVOICE_IDS="" deja fuera la allowlist del diagnóstico INFRA-212 (4
 # ids): era un one-off y en un disparador cada 15 min releería su PDF del S3 en
 # cada ciclo. El cron solo trabaja sobre las `cancelled` por OCR.
@@ -80,7 +80,7 @@ spec:
             - name: REDRIVE_OLDER_THAN_MIN
               value: "30"
             - name: REDRIVE_DRY_RUN
-              value: "1"
+              value: "0"
             - name: REDRIVE_INVOICE_IDS
               value: ""
             # El PDF se lee del S3 también en dry-run (verifica recuperabilidad).
