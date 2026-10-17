@@ -25,10 +25,11 @@
 # cronjob/skirmbooks-classifier-sweep -p '{"spec":{"suspend":false}}') cuando
 # haga falta reprocesar el backlog.
 #
-# NOTA tenants — el script conserva el descubrimiento best-effort de tenants del
-# reconcile-sweep (config + gestoria_identity.tenants), pero hoy el único tenant
-# vivo es `skirmshop` (config `tenants: [skirmshop]`). Si el descubrimiento
-# fallara, cae a {"skirmshop"} como el original.
+# NOTA tenants (SKIRM-188) — el script descubre las empresas ACTIVAS de
+# gestoria_identity.tenants elevando la lectura con SET LOCAL
+# app.is_platform_admin (la RLS de 0045 da 0 filas sin ello) e itera por cada
+# una; si la lectura falla, cae al listado `tenants:` del config (fail-open).
+# Las empresas sin movimientos salen en 0 filas: coste despreciable.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -62,16 +63,24 @@ data:
         tenants = set(cfg.get("tenants") or [])
 
         conn = await asyncpg.connect(dsn)
-        # discovery best-effort (cubre empresas anadidas tras el config)
+        # SKIRM-188: discovery de empresas ACTIVAS. Desde 0045 la tabla tiene RLS
+        # account-aware con FORCE: sin app.is_platform_admin devuelve 0 filas
+        # (medido en prod 17-10). Elevamos SOLO esta lectura con SET LOCAL en
+        # transaccion, como discover_tenants del fork (_vendor tenant.py).
+        # Fail-open: si falla, manda el listado `tenants:` del config.
         try:
-            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
-                tenants.add(r["tenant_id"])
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT set_config('app.is_platform_admin', 'on', true)"
+                )
+                for r in await conn.fetch(
+                    "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                ):
+                    tenants.add(r["tenant_id"])
         except Exception as e:
             print(f"[sweep] tenant discovery skipped: {e}", flush=True)
         if not tenants:
             tenants = {"skirmshop"}
-        # Restringir a skirmshop: hoy es el unico tenant vivo del despliegue.
-        tenants = {t for t in tenants if t == "skirmshop"} or {"skirmshop"}
 
         to_classify = {}  # tenant -> [movement_id]
         for t in sorted(tenants):

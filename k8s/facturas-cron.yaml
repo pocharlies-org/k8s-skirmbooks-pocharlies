@@ -14,8 +14,78 @@
 #     - first-run: backfill silencioso del backlog como 'pending'
 #   facturas-weekly (lunes 11:00 UTC): resumen conciliadas vs pendientes + recordatorio
 #
+# SKIRM-188: facturas-daily y facturas-weekly (los que estaban fijados a
+# skirmshop) itera las empresas ACTIVAS descubiertas en
+# gestoria_identity.tenants — el wrapper run-per-tenant lanza el módulo con
+# FACTURAS_TENANT=<empresa> para cada una (mismo contrato, sin módulo nuevo).
+# moreno tiene su propio CronJob abajo (caps y silencio distintos) y se
+# excluye con FACTURAS_TENANTS_EXCLUDE para no duplicarlo.
+#
 # Lógica testeada en synapse_adapter_banking.facturas_followup (imagen backend).
 # DRY_RUN gobernado por env FACTURAS_DRY_RUN (default 0).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-facturas-per-tenant-script
+  namespace: skirmshop
+data:
+  run-per-tenant.py: |
+    """Ejecuta el modulo de facturas por cada empresa activa (SKIRM-188)."""
+    import asyncio, os, subprocess, sys
+    import yaml, asyncpg
+
+    CFG = "/etc/synapse/adapter-gestoria-invoicing.yaml"
+    CREDS = "/etc/synapse/credentials"
+
+    def _read(path):
+        with open(path) as f:
+            return f.read().strip()
+
+    def _inject_pw(url, pw):
+        scheme, rest = url.split("://", 1)
+        userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
+        return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
+
+    async def discover():
+        # Empresas ACTIVAS, elevado con SET LOCAL app.is_platform_admin dentro
+        # de una transaccion (la RLS de 0045 da 0 filas sin elevacion, medido
+        # en prod 17-10), como discover_tenants del fork. Fail-open: si la
+        # lectura falla, manda el listado `tenants:` del config de invoicing.
+        cfg = yaml.safe_load(open(CFG))
+        tenants = set(cfg.get("tenants") or [])
+        dsn = _inject_pw(cfg["database"]["dsn"], _read(f"{CREDS}/gestoria_invoicing_app.password"))
+        try:
+            conn = await asyncpg.connect(dsn, timeout=10)
+            try:
+                async with conn.transaction():
+                    await conn.execute(
+                        "SELECT set_config('app.is_platform_admin', 'on', true)"
+                    )
+                    for r in await conn.fetch(
+                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                    ):
+                        tenants.add(r["tenant_id"])
+            finally:
+                await conn.close()
+        except Exception as e:
+            print(f"[facturas-per-tenant] discovery skipped: {e}", flush=True)
+        return tenants or {"skirmshop"}
+
+    async def main():
+        module = sys.argv[1]
+        exclude = {t.strip() for t in os.environ.get("FACTURAS_TENANTS_EXCLUDE", "").split(",") if t.strip()}
+        tenants = sorted(t for t in await discover() if t not in exclude)
+        print(f"[facturas-per-tenant] modulo={module} tenants={tenants}", flush=True)
+        rc = 0
+        for t in tenants:
+            r = subprocess.run([sys.executable, "-m", module],
+                               env={**os.environ, "FACTURAS_TENANT": t})
+            rc = rc or r.returncode
+        sys.exit(rc)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -32,7 +102,9 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 600
+      # SKIRM-188: 600→1800 — el wrapper corre el modulo por empresa en secuencia
+      # (los barridos son idempotentes: si el deadline corta, al dia siguiente se reanuda).
+      activeDeadlineSeconds: 1800
       ttlSecondsAfterFinished: 3600
       backoffLimit: 1
       template:
@@ -56,10 +128,10 @@ spec:
             # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
             # Imagen ya en prod (skirmbooks-accounting-derived).
             image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
-            command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
+            command: ["python", "/scripts/run-per-tenant.py", "synapse_adapter_banking.facturas_daily"]
             env:
-            - name: FACTURAS_TENANT
-              value: skirmshop
+            - name: FACTURAS_TENANTS_EXCLUDE   # moreno tiene su propio CronJob abajo
+              value: moreno
             - name: FACTURAS_SEARCH_CAP
               value: "12"
             - name: FACTURAS_ANNOUNCE_CAP
@@ -72,12 +144,17 @@ spec:
               requests: { cpu: "25m", memory: "96Mi" }
               limits: { cpu: "250m", memory: "256Mi" }
             volumeMounts:
+            - name: script
+              mountPath: /scripts
             - name: config
               mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
               subPath: adapter-gestoria-invoicing.yaml
             - name: credentials
               mountPath: /etc/synapse/credentials
           volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-facturas-per-tenant-script
           - name: config
             configMap:
               name: skirmbooks-invoicing-config
@@ -101,7 +178,8 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 300
+      # SKIRM-188: 300→900 — el wrapper corre el modulo por empresa en secuencia
+      activeDeadlineSeconds: 900
       ttlSecondsAfterFinished: 3600
       backoffLimit: 1
       template:
@@ -121,22 +199,27 @@ spec:
           containers:
           - name: facturas-weekly
             image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
-            command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
+            command: ["python", "/scripts/run-per-tenant.py", "synapse_adapter_banking.facturas_weekly"]
             env:
-            - name: FACTURAS_TENANT
-              value: skirmshop
+            - name: FACTURAS_TENANTS_EXCLUDE   # same reason as daily
+              value: moreno
             - name: FACTURAS_DRY_RUN
               value: "0"
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
               limits: { cpu: "250m", memory: "256Mi" }
             volumeMounts:
+            - name: script
+              mountPath: /scripts
             - name: config
               mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
               subPath: adapter-gestoria-invoicing.yaml
             - name: credentials
               mountPath: /etc/synapse/credentials
           volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-facturas-per-tenant-script
           - name: config
             configMap:
               name: skirmbooks-invoicing-config

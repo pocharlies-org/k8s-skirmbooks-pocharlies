@@ -49,10 +49,19 @@ data:
         tenants = set(cfg.get("tenants") or [])
 
         conn = await asyncpg.connect(dsn)
-        # discovery best-effort (cubre empresas añadidas tras el config)
+        # SKIRM-188: discovery de empresas ACTIVAS, elevado con SET LOCAL
+        # app.is_platform_admin en transaccion (la RLS de 0045 da 0 filas sin
+        # elevacion, medido en prod 17-10). Fail-open: si falla, manda el
+        # listado `tenants:` del config.
         try:
-            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
-                tenants.add(r["tenant_id"])
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT set_config('app.is_platform_admin', 'on', true)"
+                )
+                for r in await conn.fetch(
+                    "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                ):
+                    tenants.add(r["tenant_id"])
         except Exception as e:
             print(f"[daily-sync] tenant discovery skipped: {e}", flush=True)
         await conn.close()

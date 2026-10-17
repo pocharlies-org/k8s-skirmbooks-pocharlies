@@ -1,6 +1,8 @@
 # Vigilancia DEHú: tres pasadas al día (05:15, 15:15 y 22:15 Europe/Madrid —
 # temprano, mediodía y noche). El job publica UN comando
-# notifications.skirmshop.deh.poll; todo lo demás (leer buzones, emparejar NIF,
+# notifications.<tenant>.deh.poll POR CADA EMPRESA ACTA (SKIRM-188: descubrimiento
+# de gestoria_identity.tenants elevado con SET LOCAL app.is_platform_admin, mismo
+# contrato de routing key, sin cola nueva); todo lo demás (leer buzones, emparejar NIF,
 # escalar severidades, marcar vencidas, publicar los dispatch) lo hace el
 # adapter en deh_poll — el cron no toca la BD. Patrón = tax-modelo-sweep
 # ("no engine para skirmbooks").
@@ -21,9 +23,9 @@ metadata:
   namespace: skirmshop
 data:
   poll.py: |
-    """Publica el comando deh_poll (una vez; el poll es idempotente)."""
+    """Publica notifications.<tenant>.deh.poll por cada empresa activa."""
     import asyncio, json, os, uuid
-    import yaml, aio_pika
+    import yaml, asyncpg, aio_pika
 
     CFG = "/etc/synapse/adapter-gestoria-notifications.yaml"
     CREDS = "/etc/synapse/credentials"
@@ -37,6 +39,31 @@ data:
         userhost, tail = rest.split("@", 1) if "@" in rest else (rest, "")
         return f"{scheme}://{userhost}:{pw}@{tail}" if tail else f"{scheme}://{userhost}:{pw}@"
 
+    async def _discover(cfg):
+        # SKIRM-188: empresas ACTIVAS de gestoria_identity.tenants, elevado con
+        # SET LOCAL app.is_platform_admin en transaccion (la RLS de 0045 da 0
+        # filas sin ello; verificado en prod 17-10 con este rol). La lectura es
+        # solo para el listado: el cron NO toca la BD por lo demas. Fail-open:
+        # si falla, manda el listado `tenants:` del config.
+        tenants = set(cfg.get("tenants") or [])
+        dsn = _inject_pw(cfg["database"]["dsn"], _read(f"{CREDS}/gestoria_notifications_app.password"))
+        try:
+            conn = await asyncpg.connect(dsn, timeout=10)
+            try:
+                async with conn.transaction():
+                    await conn.execute(
+                        "SELECT set_config('app.is_platform_admin', 'on', true)"
+                    )
+                    for r in await conn.fetch(
+                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                    ):
+                        tenants.add(r["tenant_id"])
+            finally:
+                await conn.close()
+        except Exception as e:
+            print(f"[deh-poll] tenant discovery skipped: {e}", flush=True)
+        return sorted(tenants) or ["skirmshop"]
+
     async def main():
         cfg = yaml.safe_load(open(CFG))
         if not (cfg.get("deh") or {}).get("enabled"):
@@ -44,29 +71,32 @@ data:
             return
         rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_notifications.rmq.password")
         amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
+        tenants = await _discover(cfg)
+        print(f"[deh-poll] tenants={tenants}", flush=True)
 
         rmq = await aio_pika.connect_robust(amqp_url)
         ch = await rmq.channel(publisher_confirms=True)
         ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
-        msg_id = uuid.uuid4().hex
-        body = json.dumps({
-            "workflow_instance_id": str(uuid.uuid4()),
-            "step_id": msg_id,
-            "plugin": "notifications.deh.poll",
-            "params": {},
-            "attempt": 1,
-        }).encode()
-        await ex.publish(
-            aio_pika.Message(
-                body=body, content_type="application/json",
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                message_id=msg_id,
-                headers={"tenant_id": "skirmshop", "source": "deh-poll-cron"},
-            ),
-            routing_key="notifications.skirmshop.deh.poll",
-        )
+        for t in tenants:
+            msg_id = uuid.uuid4().hex
+            body = json.dumps({
+                "workflow_instance_id": str(uuid.uuid4()),
+                "step_id": msg_id,
+                "plugin": "notifications.deh.poll",
+                "params": {},
+                "attempt": 1,
+            }).encode()
+            await ex.publish(
+                aio_pika.Message(
+                    body=body, content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=msg_id,
+                    headers={"tenant_id": t, "source": "deh-poll-cron"},
+                ),
+                routing_key=f"notifications.{t}.deh.poll",
+            )
         await rmq.close()
-        print(f"[deh-poll] comando publicado ({msg_id})", flush=True)
+        print(f"[deh-poll] comandos publicados para {len(tenants)} empresas", flush=True)
 
     if __name__ == "__main__":
         asyncio.run(main())

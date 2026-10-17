@@ -18,7 +18,8 @@
 #   1b. RECIBIDAS:  classified/posted sin journal_entry_id
 #                  → accounting.<t>.derived.from_invoice (kind=received)
 #   2. VENTAS SII: SiiSubmission production (F1/F2, no rectificativas) que no
-#                  estén en issued_invoices (serie SII)
+#                  estén en issued_invoices (serie SII), SOLO en empresas con
+#                  módulo `shopify_sii` (columna `modules`, SKIRM-187/0108)
 #                  → invoicing.<t>.issued.import
 #   3. EMITIDAS:   issued_invoices sin asiento (dedup por source_aggregate)
 #                  → accounting.<t>.derived.from_invoice (kind=issued)
@@ -59,13 +60,45 @@ data:
         tenants = set(cfg.get("tenants") or [])
 
         conn = await asyncpg.connect(dsn)
+        # SKIRM-188: discovery de empresas ACTIVAS elevado con SET LOCAL
+        # app.is_platform_admin (la RLS de 0045 da 0 filas sin elevacion, medido
+        # en prod 17-10). Ademas se leen `modules` (migracion 0108) para gating
+        # de la fase SII; si la columna aun no existe, fail-open: solo
+        # SII_TENANT (skirmshop) tiene el modulo, como hoy.
+        modules = {}
         try:
-            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"):
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT set_config('app.is_platform_admin', 'on', true)"
+                )
+                rows = await conn.fetch(
+                    "SELECT tenant_id, modules FROM gestoria_identity.tenants WHERE status='active'"
+                )
+            for r in rows:
                 tenants.add(r["tenant_id"])
+                modules[r["tenant_id"]] = set(r["modules"] or [])
         except Exception as e:
-            print(f"[acc-sweep] tenant discovery skipped: {e}", flush=True)
+            # 0108 aun no aplicada (UndefinedColumnError) u otro fallo: reintenta
+            # sin la columna; suelo de modulos = skirmshop (conducta de hoy).
+            print(f"[acc-sweep] discovery with modules failed ({e}); retry without", flush=True)
+            try:
+                async with conn.transaction():
+                    await conn.execute(
+                        "SELECT set_config('app.is_platform_admin', 'on', true)"
+                    )
+                    rows = await conn.fetch(
+                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                    )
+                for r in rows:
+                    tenants.add(r["tenant_id"])
+            except Exception as e2:
+                print(f"[acc-sweep] tenant discovery skipped: {e2}", flush=True)
+        if not modules:
+            modules = {SII_TENANT: {"shopify_sii"}}
         if not tenants:
-            tenants = {SII_TENANT}
+            tenants = set(cfg.get("tenants") or []) or {SII_TENANT}
+        print(f"[acc-sweep] tenants={sorted(tenants)} "
+              f"modules={ {t: sorted(m) for t, m in sorted(modules.items())} }", flush=True)
 
         commands = []  # (routing_key, tenant, plugin, params)
 
@@ -119,10 +152,17 @@ data:
                                  {"invoice_kind": "received", "invoice_id": str(r["id"])}))
             print(f"[acc-sweep] {t}: recibidas sin asiento={len(rows)}", flush=True)
 
-        # ---- Fase 2: SiiSubmission (BD skirmshop, app shopify-sii) → issued.import
+        # ---- Fase 2: SiiSubmission (app shopify-sii) → issued.import, solo
+        # empresas con modulo `shopify_sii` (SKIRM-188; columna 0108). El DSN de
+        # la BD `skirmshop` (SII_DATABASE_URL) se queda siendo el de skirmshop;
+        # otra empresa con el modulo se salta hasta tener DSN propio (SKIRM-187).
         sii_dsn = os.environ.get("SII_DATABASE_URL")
-        if sii_dsn:
-            t = SII_TENANT
+        for t in sorted(tenants):
+            if "shopify_sii" not in modules.get(t, set()):
+                continue
+            if not sii_dsn or t != SII_TENANT:
+                print(f"[acc-sweep] {t}: shopify_sii sin DSN propio — skip", flush=True)
+                continue
             await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
             have_rows = await conn.fetch(
                 "SELECT number, (country_breakdown <> '[]'::jsonb) AS has_cb"
@@ -185,7 +225,7 @@ data:
                 queued += 1
             # Rectificativas fuera de alcance del importador: requieren asiento
             # inverso + vínculo rectifies_id — se registran en log, no en silencio.
-            print(f"[acc-sweep] sii: prod={len(srows)} ya_importadas={len(have_all)} "
+            print(f"[acc-sweep] sii {t}: prod={len(srows)} ya_importadas={len(have_all)} "
                   f"encoladas={queued} rectificativas_skip={skipped_rect}", flush=True)
 
         # ---- Fase 3: emitidas sin asiento → derived.from_invoice (issued)

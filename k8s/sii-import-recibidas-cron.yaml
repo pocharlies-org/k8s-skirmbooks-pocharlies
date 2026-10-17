@@ -71,19 +71,26 @@ data:
         amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
         tenants = set(cfg.get("tenants") or [])
 
-        # Discovery best-effort. OJO: gestoria_identity.tenants tiene RLS con FORCE
-        # (policy tenants_select_scoped) y este rol no fija ningun app.* GUC, asi que
-        # HOY devuelve CERO filas: quien manda de verdad es la lista `tenants` del
-        # ConfigMap. Se conserva para el dia que se relaje la policy, pero el connect
-        # va DENTRO del try y con timeout: el 26-08-2026 el `asyncpg.connect` estaba
-        # fuera y un cuelgue de postgres-shared-rw (el `-rw` ha cambiado de primario
-        # varias veces, timeline 48) tumbo el Job entero -> BackoffLimitExceeded y
-        # cero comandos publicados. El publish NO necesita la base de datos.
+        # Discovery de empresas ACTIVAS (SKIRM-188). OJO: gestoria_identity.tenants
+        # tiene RLS con FORCE (policy tenants_select_scoped) y sin GUC devuelve
+        # CERO filas (medido en prod 17-10): elevamos SOLO esta lectura con
+        # SET LOCAL app.is_platform_admin dentro de una transaccion, como hace
+        # discover_tenants del fork. El connect sigue DENTRO del try y con
+        # timeout: el 26-08-2026 un cuelgue de postgres-shared-rw (el `-rw` ha
+        # cambiado de primario varias veces, timeline 48) tumbo el Job entero
+        # -> BackoffLimitExceeded. El publish NO necesita la base de datos: si
+        # la lectura falla, manda el listado `tenants:` del ConfigMap (fail-open).
         conn = None
         try:
             conn = await asyncpg.connect(dsn, timeout=10)
-            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants"):
-                tenants.add(r["tenant_id"])
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT set_config('app.is_platform_admin', 'on', true)"
+                )
+                for r in await conn.fetch(
+                    "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                ):
+                    tenants.add(r["tenant_id"])
         except Exception as e:
             print(f"[sii-import] tenant discovery skipped: {e}", flush=True)
         finally:
