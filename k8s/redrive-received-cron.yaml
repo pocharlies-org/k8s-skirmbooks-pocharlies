@@ -1,0 +1,114 @@
+# Redrive de facturas `cancelled` por caída del residente (SKIRM-183 · C2.6).
+#
+# Contexto: con el residente LLM caído, el paso `cancel` del workflow
+# invoicing-receive-pipeline (SKIRM-141, decisión de Dani: se MANTIENE) deja la
+# factura en `cancelled` con motivo «OCR cancelado: el modelo no respondió tras
+# los reintentos» a los ~2,5 min, y hasta ahora la única salida era el botón OCR
+# de la UI, factura a factura. `synapse_adapter_invoicing.redrive_received`
+# (skirmbooks-gestoria-src, merge eae245a) devuelve esas filas a `received` —el
+# inverso exacto de `invoicing.received.cancel`— y re-emite
+# `attachment.<tenant>.received`, con lo que la rama dedup de `ingest` re-encola
+# el pipeline completo (ocr→classify→post). Rescata SOLO el motivo exacto del
+# `cancel` y con más de REDRIVE_OLDER_THAN_MIN minutos: una cancelada por rechazo
+# humano o por duplicada NUNCA se resucita.
+#
+# Empresa: el módulo es single-tenant (lee con `app.tenant_id` = FACTURAS_TENANT).
+# Medido el 17-10 sobre gestoria_invoicing.incoming_invoices: skirmshop es el
+# único tenant con facturas en juego (91 `received`, 0 `cancelled`); `moreno`
+# tiene 12 filas y ninguna parada. Si moreno empieza a recibir facturas por este
+# pipeline, hace falta otro CronJob con FACTURAS_TENANT=moreno (patrón
+# facturas-digest-moreno-cron.yaml).
+#
+# DRY-RUN a propósito (REDRIVE_DRY_RUN="1", el default del módulo): el Job informa
+# en el log y NO escribe ni publica — es lo que pide C2.5 («el CronJob de redrive
+# no re-emetiendo nada en claro»). Que rescate de verdad (C2.3b) es poner este
+# valor a "0": una línea, decisión del CTO.
+# REDRIVE_INVOICE_IDS="" deja fuera la allowlist del diagnóstico INFRA-212 (4
+# ids): era un one-off y en un disparador cada 15 min releería su PDF del S3 en
+# cada ciclo. El cron solo trabaja sobre las `cancelled` por OCR.
+#
+# Reutiliza imagen, config (skirmbooks-invoicing-config) y credenciales
+# (skirmbooks-backend-secrets) del adapter invoicing — mismo patrón que
+# patterns-cron.yaml y reconcile-sweep-cron.yaml. El PDF se lee SIEMPRE del S3
+# (InvoiceArtifactStore), también en dry-run, de ahí las claves AWS por
+# secretKeyRef como en los deployments del adapter.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-redrive-received
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-redrive-received
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "*/15 * * * *"        # cada 15 min
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Cota generosa a propósito: la selección trae hasta 200 filas y cada una
+      # lee su PDF del S3. Si el Job muere a mitad, una fila ya pasada a
+      # `received` deja de ser candidata (solo se seleccionan `cancelled`) y
+      # quedaría huérfana como en INFRA-212.
+      activeDeadlineSeconds: 600
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-redrive-received
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: redrive-received
+            # Imagen del merge SKIRM-183 de skirmbooks-gestoria-src (eae245a);
+            # es la única que lleva el redrive extendido a las `cancelled`.
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
+            command: ["python", "-m", "synapse_adapter_invoicing.redrive_received"]
+            env:
+            - name: FACTURAS_TENANT
+              value: skirmshop
+            - name: REDRIVE_OLDER_THAN_MIN
+              value: "30"
+            - name: REDRIVE_DRY_RUN
+              value: "1"
+            - name: REDRIVE_INVOICE_IDS
+              value: ""
+            # El PDF se lee del S3 también en dry-run (verifica recuperabilidad).
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: skirmshop-drive-s3-skirmbooks
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: skirmshop-drive-s3-skirmbooks
+                  key: AWS_SECRET_ACCESS_KEY
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              # Por encima de los 256Mi de los otros crons: este Job mete el PDF
+              # completo en memoria (y su base64) antes de publicar.
+              limits: { cpu: "250m", memory: "512Mi" }
+            volumeMounts:
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-invoicing.yaml
+              subPath: adapter-gestoria-invoicing.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: config
+            configMap:
+              name: skirmbooks-invoicing-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
