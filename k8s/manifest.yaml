@@ -137,13 +137,16 @@ spec:
                 secretKeyRef:
                   name: skirmbooks-ui-db
                   key: DB_USER
-            - name: DB_PASSWORD
+            # La contraseña va por PGPASSWORD y no dentro de la URL: lleva caracteres
+            # que rompen la URL (`@`, `/`, `%`…) y `$(…)` no los escapa. `pg` la lee
+            # de PGPASSWORD cuando la URL no trae contraseña.
+            - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
                   name: skirmbooks-ui-db
                   key: DB_PASSWORD
             - name: GESTORIA_DB_URL
-              value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
+              value: postgresql://$(DB_USER)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks
             - name: _RMQUSER
               valueFrom:
                 secretKeyRef:
