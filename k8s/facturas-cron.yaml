@@ -55,7 +55,7 @@ spec:
             # ni la exclusión journal_lines en PENDING_GASTOS_SQL, por lo que los gastos ya
             # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
             # Imagen ya en prod (skirmbooks-accounting-derived).
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:consumer-watchdog-20261017@sha256:c786cf5bbbae0613fdcce379636f42b452ebb2b990a033450000b5be7f14c65b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
@@ -120,7 +120,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-weekly
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:consumer-watchdog-20261017@sha256:c786cf5bbbae0613fdcce379636f42b452ebb2b990a033450000b5be7f14c65b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
             command: ["python", "-m", "synapse_adapter_banking.facturas_weekly"]
             env:
             - name: FACTURAS_TENANT
@@ -182,7 +182,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:consumer-watchdog-20261017@sha256:c786cf5bbbae0613fdcce379636f42b452ebb2b990a033450000b5be7f14c65b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT

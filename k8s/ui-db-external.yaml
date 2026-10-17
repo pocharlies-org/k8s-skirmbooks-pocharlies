@@ -1,0 +1,50 @@
+# skirmbooks-ui-db ← 1Password (ESO-managed) — credenciales del rol de BD propio de la UI
+# =============================================================================
+# SKIRM-184 (C3.6). Materializa el Secret `skirmshop/skirmbooks-ui-db` desde el
+# ítem 1Password `skirmbooks-ui-db` (vault `k8s-pocharlies`), campos DB_USER y
+# DB_PASSWORD: las credenciales del rol `skirmbooks_ui_app` con el que la UI
+# entra a la base `skirmbooks`, en lugar del rol compartido `skirmshop`
+# (`shared-postgres-app`, que además lee la base SII de la tienda).
+#
+# El rol NO se crea aquí ni por migración: lo declara CNPG en
+# k8s-infra-pocharlies `databases/postgres-shared/cluster.yaml`
+# (spec.managed.roles, passwordSecret `skirmbooks-ui-db-credentials` en ns
+# `databases`); la migración 0106 del producto solo concede GRANT sobre los
+# esquemas gestoría_*. El rol no tiene permisos sobre la base SII.
+#
+# Forma Connect (ARCHITECTURE.md §4): remoteRef key = ítem, property = campo;
+# no gasta el cupo diario de la cuenta. `refreshPolicy: OnChange` + el
+# onepassword-change-detector recogen la rotación sin force-sync a mano.
+# ESO solo lee: la siembra del ítem es del rol security (op CLI).
+#
+# El Deployment skirmbooks-ui consume este Secret por secretKeyRef
+# (manifest.yaml, DB_USER/DB_PASSWORD → GESTORIA_DB_URL). SII_DB_* y
+# SII_DATABASE_URL siguen leyendo `shared-postgres-app`: la conexión a la base
+# SII de la tienda no cambia.
+# =============================================================================
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: skirmbooks-ui-db
+  namespace: skirmshop
+  labels:
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  refreshInterval: 24h
+  refreshPolicy: OnChange
+  secretStoreRef:
+    name: onepassword-connect
+    kind: ClusterSecretStore
+  target:
+    name: skirmbooks-ui-db
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: DB_USER
+      remoteRef:
+        key: skirmbooks-ui-db
+        property: DB_USER
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: skirmbooks-ui-db
+        property: DB_PASSWORD
