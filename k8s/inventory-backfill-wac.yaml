@@ -26,7 +26,7 @@
 #         imagePullSecrets: [{ name: harbor-pull }]
 #         containers:
 #         - name: backfill
-#           image: harbor.e-dani.com/homelab/skirmbooks-backend:consumer-watchdog-20261017@sha256:c786cf5bbbae0613fdcce379636f42b452ebb2b990a033450000b5be7f14c65b imagen que reporting-inventory>
+#           image: harbor.e-dani.com/homelab/skirmbooks-backend:aislamiento-20261017@sha256:e87cc22fcd020090f2c0745c0fe024e3254c153804824fddba5c9162e0eaa24f imagen que reporting-inventory>
 #           command: ["python"]
 #           args: ["/scripts/backfill.py"]
 #           env:
