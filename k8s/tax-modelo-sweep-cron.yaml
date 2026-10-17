@@ -39,9 +39,19 @@ data:
         tenants = set(cfg.get("tenants") or [])
 
         conn = await asyncpg.connect(dsn)
+        # SKIRM-188: discovery de empresas ACTIVAS, elevado con SET LOCAL
+        # app.is_platform_admin en transaccion (la RLS de 0045 da 0 filas sin
+        # elevacion, medido en prod 17-10). Fail-open: si falla, manda el
+        # listado `tenants:` del config.
         try:
-            for r in await conn.fetch("SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"):
-                tenants.add(r["tenant_id"])
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT set_config('app.is_platform_admin', 'on', true)"
+                )
+                for r in await conn.fetch(
+                    "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active' AND profile='empresa'"
+                ):
+                    tenants.add(r["tenant_id"])
         except Exception as e:
             print(f"[tax-sweep] tenant discovery skipped: {e}", flush=True)
         if not tenants:
@@ -182,7 +192,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:credenciales-20261017@sha256:d224b4772956086575739eb50e0086a1aad3df956a24c7659e36f0456e12e3dc
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:empresas-20261017@sha256:78d35e8d8b10f8f75fbb7f3b6198971620332ba54bae72f766610bece532431e
             command: ["python", "/scripts/sweep.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
