@@ -192,7 +192,7 @@ spec:
           # disparo del 26-09-2026 murió sin publicar. Va a los ks5-cp-*.
           containers:
           - name: publish
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:empresas-20261017@sha256:78d35e8d8b10f8f75fbb7f3b6198971620332ba54bae72f766610bece532431e
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:rectificativa-20261018@sha256:572e290903a056b195529468dab5fbf5a0b0e8a3ae92eedd96ad1c4fffedffd7
             command: ["python", "/scripts/publish.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
