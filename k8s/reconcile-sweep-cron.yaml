@@ -65,6 +65,10 @@ data:
                 WHERE m.tenant_id=$1 AND m.status='imported'
                   AND NOT EXISTS (SELECT 1 FROM gestoria_banking.reconciliation_proposals p
                                   WHERE p.movement_id=m.id)
+                  -- SKIRM-173: match_movement devuelve has_payout sin propuesta; sin esto
+                  -- se republicaban 203 cada 15 min y KEDA levantaba 6 pods por barrido.
+                  AND NOT EXISTS (SELECT 1 FROM gestoria_banking.processor_payouts pp
+                                  WHERE pp.tenant_id=m.tenant_id AND pp.movement_id=m.id)
                 ORDER BY m.value_date
                 """, t,
             )
@@ -141,7 +145,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:compras-nif-repost-20261015@sha256:b7421d9c233bdfd61a7eaca20befbd888ab1d991907c76b7a4bea2cabed7ca59
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:consumer-watchdog-20261017@sha256:c786cf5bbbae0613fdcce379636f42b452ebb2b990a033450000b5be7f14c65b
             command: ["python", "/scripts/sweep.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
