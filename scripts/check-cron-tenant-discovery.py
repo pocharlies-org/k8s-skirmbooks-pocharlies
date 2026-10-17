@@ -31,6 +31,10 @@ FILES = {
 ELEVATION = "app.is_platform_admin"
 ACTIVE_FILTER = "status='active'"
 FAILOPEN = 'cfg.get("tenants")'
+# Procesos de empresa: una empresa `personal` (family) tiene sus propios crons y
+# no se clasifica ni contabiliza como empresa. Solo el import bancario va a todas.
+EMPRESA_FILTER = "profile='empresa'"
+TODAS_LAS_ACTIVAS = {"banking-daily-sync-cron.yaml", "reconcile-sweep-cron.yaml"}
 
 failures = []
 
@@ -80,6 +84,8 @@ def check_file(fname):
             failures.append(f"{fname}: el descubrimiento no filtra {ACTIVE_FILTER}")
         if FAILOPEN not in allcode:
             failures.append(f"{fname}: no cae al listado `tenants:` del config (fail-open)")
+        if fname not in TODAS_LAS_ACTIVAS and EMPRESA_FILTER not in allcode:
+            failures.append(f"{fname}: el descubrimiento no se limita a {EMPRESA_FILTER}")
     # comprobaciones por fichero
     if fname == "classifier-sweep-cron.yaml":
         if re.search(r'==\s*"skirmshop"', allcode):

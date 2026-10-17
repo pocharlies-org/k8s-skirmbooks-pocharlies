@@ -72,7 +72,7 @@ data:
                     "SELECT set_config('app.is_platform_admin', 'on', true)"
                 )
                 rows = await conn.fetch(
-                    "SELECT tenant_id, modules FROM gestoria_identity.tenants WHERE status='active'"
+                    "SELECT tenant_id, modules FROM gestoria_identity.tenants WHERE status='active' AND profile='empresa'"
                 )
             for r in rows:
                 tenants.add(r["tenant_id"])
@@ -87,7 +87,7 @@ data:
                         "SELECT set_config('app.is_platform_admin', 'on', true)"
                     )
                     rows = await conn.fetch(
-                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active' AND profile='empresa'"
                     )
                 for r in rows:
                     tenants.add(r["tenant_id"])

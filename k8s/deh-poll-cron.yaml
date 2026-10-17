@@ -55,7 +55,7 @@ data:
                         "SELECT set_config('app.is_platform_admin', 'on', true)"
                     )
                     for r in await conn.fetch(
-                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active'"
+                        "SELECT tenant_id FROM gestoria_identity.tenants WHERE status='active' AND profile='empresa'"
                     ):
                         tenants.add(r["tenant_id"])
             finally:
