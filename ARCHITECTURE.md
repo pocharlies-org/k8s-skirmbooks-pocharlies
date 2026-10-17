@@ -8,8 +8,8 @@
 
 | cliente | repositorio / ruta | versión desplegada | cómo se despliega |
 |---|---|---|---|
-| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `credenciales-20261017` (`@sha256:405950e6…`; migraciones PreSync con el mismo release, D12) | ArgoCD app `skirmbooks` |
-| Backend y workers (banca, facturas, clasificador, deh/dehu, ledger-layers) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **un único tag** `skirmbooks-backend:credenciales-20261017` (`@sha256:d224b477…`) en sus 61 usos; `aeat-browser` es imagen propia (`skirmbooks-aeat-browser:v0.1.2`) | ídem |
+| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `empresas-20261017` (`@sha256:c7ff5f02…`; migraciones PreSync con el mismo release, D12) | ArgoCD app `skirmbooks` |
+| Backend y workers (banca, facturas, clasificador, deh/dehu, ledger-layers) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **un único tag** `skirmbooks-backend:empresas-20261017` (`@sha256:78d35e8d…`) en sus 62 usos; `aeat-browser` es imagen propia (`skirmbooks-aeat-browser:v0.1.2`) | ídem |
 | CronJobs (accounting-sweep, banking-daily-sync, klarna, paypal, cobros/facturas digest, deh-poll…) | `k8s/*-cron.yaml` | mismas imágenes | ídem |
 
 Clientes del producto: web (UI) y el MCP/tools de Skirmbooks vía `/skirmshop-plugins` del AgentGateway (`skirmbooks_reconcile_*`).
