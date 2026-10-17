@@ -12,6 +12,8 @@
 #   - broker-drift-immune (publica directo al broker correcto),
 #   - source-agnostic (cubre PSD2/CSV/cualquier importador),
 #   - idempotente (filtra los que ya tienen propuesta -> no duplica).
+# Antes, por tenant, concilia con `link_gestoria_ledger` los gastos que la gestoría
+# ya tiene pagados en su 572 (SKIRM-172).
 # Reusa la imagen + config + credenciales del adapter banking (aditivo, no toca
 # los Deployments en marcha).
 apiVersion: v1
@@ -57,8 +59,12 @@ data:
             tenants = {"skirmshop"}
 
         to_match = {}  # tenant -> [movement_id]
+        gestoria = {}  # tenant -> conciliados por el diario de la gestoría
         for t in sorted(tenants):
             await conn.execute("SELECT set_config('app.tenant_id',$1,false)", t)
+            # SKIRM-172: antes de proponer, concilia los gastos que la gestoría ya tiene
+            # pagados en su 572 (migración 0105 de skirmbooks-gestoria-src).
+            gestoria[t] = await conn.fetchval("SELECT gestoria_banking.link_gestoria_ledger($1)", t)
             rows = await conn.fetch(
                 """
                 SELECT m.id FROM gestoria_banking.bank_movements m
@@ -76,7 +82,7 @@ data:
         await conn.close()
 
         total = sum(len(v) for v in to_match.values())
-        print(f"[sweep] tenants={sorted(tenants)} pendientes={ {t: len(v) for t,v in to_match.items()} } total={total}", flush=True)
+        print(f"[sweep] tenants={sorted(tenants)} gestoria={gestoria} pendientes={ {t: len(v) for t,v in to_match.items()} } total={total}", flush=True)
         if total == 0:
             return
 
