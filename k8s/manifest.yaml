@@ -44,7 +44,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui@sha256:c7ff5f028200ada8a49c028b7c968b000379fd596e16f5772575e4b58b502d20  # empresas-20261017
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui@sha256:26a8338858b0acd7cc9b1917419379d43f3f8743f2d998493323c832f3ad3ed4  # gestoria-20261018
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -56,6 +56,16 @@ spec:
             # re-render — the flash users saw as "la página no carga".
             - name: TZ
               value: Europe/Madrid
+            # Portal de la gestoría (SKIRM-198): la bandeja sube el diario a
+            # ledger-layers server-side con su token de servicio, el mismo secret que
+            # monta el propio servicio. Sin URL o sin token la subida queda cerrada.
+            - name: LEDGER_LAYERS_URL
+              value: http://skirmbooks-ledger-layers.skirmshop.svc.cluster.local
+            - name: LEDGER_LAYERS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: skirmbooks-ledger-layers-secrets
+                  key: LEDGER_LAYERS_API_TOKEN
             # Validación 369: lectura de OssCountryDaily en la BD de la app
             # shopify-sii (misma instancia CNPG, database `skirmshop`). Mismo
             # patrón que el accounting-sweep. Fail-soft si falta.
