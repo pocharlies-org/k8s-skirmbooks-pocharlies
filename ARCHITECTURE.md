@@ -8,7 +8,7 @@
 
 | cliente | repositorio / ruta | versión desplegada | cómo se despliega |
 |---|---|---|---|
-| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `gestoria-20261018` (`@sha256:26a83388…`; migraciones PreSync con el mismo release, D12) | ArgoCD app `skirmbooks` |
+| `skirmbooks-ui` (host `skirmbooks.e-dani.com`) | `k8s/` | `gestoria-ux-20261018` (`@sha256:9cc37330…`; migraciones PreSync con el mismo release, D12) | ArgoCD app `skirmbooks` |
 | Backend y workers (banca, facturas, clasificador, deh/dehu, ledger-layers) | `backend-deployments.yaml`, `banking-*`, `classifier-*`… | **un único tag** `skirmbooks-backend:gestoria-20261018` (`@sha256:6748a0d1…`) en sus 62 usos; `aeat-browser` es imagen propia (`skirmbooks-aeat-browser:v0.1.2`) | ídem |
 | CronJobs (accounting-sweep, banking-daily-sync, klarna, paypal, cobros/facturas digest, deh-poll…) | `k8s/*-cron.yaml` | mismas imágenes | ídem |
 
