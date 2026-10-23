@@ -29,7 +29,7 @@ data:
   publish.py: |
     """Publica reporting.skirmshop.inventory.value_snapshot {} (cierre mes anterior por defecto)."""
     import asyncio, json, os, uuid, datetime
-    import yaml, asyncpg, aio_pika
+    import yaml, aio_pika
 
     CFG = "/etc/synapse/adapter-gestoria-reporting.yaml"
     CREDS = "/etc/synapse/credentials"
@@ -46,16 +46,23 @@ data:
 
     async def main():
         cfg = yaml.safe_load(open(CFG))
-        db_pw = _read(f"{CREDS}/gestoria_reporting_app.password")
         rmq_pw = _read(f"{CREDS}/synapse_adapter_gestoria_reporting.rmq.password")
-        dsn = _inject_pw(cfg["database"]["dsn"], db_pw)
         amqp_url = _inject_pw(cfg["rabbitmq"]["url"], rmq_pw)
 
         # Inventario = SINGLE-TENANT skirmshop. NO se hace discovery ni fan-out a
-        # otros tenants (el DSN se resuelve para validar credenciales/red).
+        # otros tenants. Aqui NO se conecta a Postgres: el connect que habia (solo
+        # para "validar credenciales/red") no tenia ninguna query detras y con
+        # `tenant` hardcodeado no hace falta discovery, asi que es una dependencia
+        # de red que el publish no necesita para nada. Mismo patron de connect
+        # inutil que 53d37cb (#13) quito del cron hermano
+        # skirmbooks-sii-import-recibidas -- alli se conservo envuelto (try/except
+        # + timeout) porque protegia una query de discovery real que se guarda
+        # para cuando se relaje una RLS; aqui no hay query que conservar, asi que
+        # se borra en vez de envolverse. (No es una prueba de que este connect
+        # causara el BackoffLimitExceeded del 2026-09-03: la ventana de Postgres
+        # aparecio sana y los 71s del Job no encajan con el timeout de ~60s del
+        # connect colgado del cron hermano.)
         tenant = "skirmshop"
-        conn = await asyncpg.connect(dsn)
-        await conn.close()
 
         print(f"[inventory-snapshot] tenant={tenant} params={{}} (handler -> previous-month-end)", flush=True)
 
