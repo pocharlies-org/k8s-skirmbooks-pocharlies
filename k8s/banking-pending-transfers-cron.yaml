@@ -227,7 +227,7 @@ metadata:
     app: skirmbooks-banking-pending-transfers
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  schedule: "30 21 * * *"          # 21:30 UTC (23:30 Madrid): el banco ya tiene el import PSD2 de las 06:40
+  schedule: "30 21 * * *"          # 21:30 UTC (22:30 Madrid en invierno): el banco ya tiene el import PSD2 de las 06:40
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 3
@@ -258,7 +258,7 @@ spec:
             env:
             - name: TENANT
               value: skirmshop
-            # 0 = el chat de la ruta `telegram` de la empresa (notification_routes).
+            # Vacío ("") = el chat de la ruta `telegram` de la empresa (notification_routes).
             - name: CHAT_ID
               value: ""
             - name: DRY_RUN
