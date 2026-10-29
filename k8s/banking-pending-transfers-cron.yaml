@@ -1,4 +1,4 @@
-# Cron nocturno de TRANSFERENCIAS PENDIENTES de cobro (tenant skirmshop).
+# Cron de TRANSFERENCIAS PENDIENTES de cobro (tenant skirmshop), justo tras el import PSD2.
 #
 # Qué hace: los pedidos cobrados por transferencia quedan en Shopify con método
 # «Bank Deposit» y PENDING hasta que alguien los marca pagados a mano. Este cron pide
@@ -17,7 +17,7 @@ metadata:
   namespace: skirmshop
 data:
   pending_transfers.py: |
-    """Cron nocturno: transferencias que nos deben y si ya entraron en el banco."""
+    """Transferencias que nos deben y si ya entraron en el banco (corre tras el import PSD2)."""
     from __future__ import annotations
 
     import asyncio
@@ -227,7 +227,7 @@ metadata:
     app: skirmbooks-banking-pending-transfers
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  schedule: "30 21 * * *"          # 21:30 UTC (22:30 Madrid en invierno): el banco ya tiene el import PSD2 de las 06:40
+  schedule: "10 7 * * *"           # 07:10 UTC (08:10 Madrid): 30 min después del import PSD2 (06:40), que es lo único fresco que hay
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 3
