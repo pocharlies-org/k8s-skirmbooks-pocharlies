@@ -1,0 +1,286 @@
+# Cron nocturno de TRANSFERENCIAS PENDIENTES de cobro (tenant skirmshop).
+#
+# Qué hace: los pedidos cobrados por transferencia quedan en Shopify con método
+# «Bank Deposit» y PENDING hasta que alguien los marca pagados a mano. Este cron pide
+# a Shopify los pedidos así de pendientes, los cruza con los ingresos reales de
+# `gestoria_banking.bank_movements` (los que trae el import PSD2 de las 06:40) y
+# publica en Telegram dos listas: lo que YA entró y falta marcar, y lo que sigue sin
+# pagar. No marca nada: el dinero lo confirma Dani.
+#
+# Mismo patrón que banking-daily-sync / cobros-digest: script en ConfigMap sobre la
+# imagen del adapter de banca (asyncpg + aio_pika + httpx ya dentro), config y
+# credenciales montadas, y aviso publicado como comando `messaging.<tenant>.send`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skirmbooks-banking-pending-transfers-script
+  namespace: skirmshop
+data:
+  pending_transfers.py: |
+    """Cron nocturno: transferencias que nos deben y si ya entraron en el banco."""
+    from __future__ import annotations
+
+    import asyncio
+    import os
+    import re
+    from datetime import date, datetime, timedelta, timezone
+
+    import aio_pika
+    import asyncpg
+    import httpx
+    import yaml
+
+    from synapse_adapter_banking import facturas_followup as ff
+
+    CFG = os.environ.get("BANKING_CFG", "/etc/synapse/adapter-gestoria-banking.yaml")
+    CREDS = os.environ.get("BANKING_CREDS", "/etc/synapse/credentials")
+    DB_PW_FILE = os.environ.get("BANKING_DB_PW_FILE", "gestoria_banking_app.password")
+    RMQ_PW_FILE = os.environ.get(
+        "BANKING_RMQ_PW_FILE", "synapse_adapter_gestoria_banking.rmq.password")
+
+    TENANT = os.environ.get("TENANT", "skirmshop")
+    CHAT_ID = os.environ.get("CHAT_ID", "")
+    TOPIC_KEY = os.environ.get("TOPIC_KEY", "transferencias")
+    TOPIC_NAME = os.environ.get("TOPIC_NAME", "💰 Transferencias")
+    # Pedidos pendientes de los últimos N días (una transferencia no se persigue eterna).
+    LOOKBACK_DAYS = int(os.environ.get("PENDING_LOOKBACK_DAYS", "90"))
+    # Shopify llama al método de transferencia «Bank Deposit»; se puede ajustar por env.
+    GATEWAY = os.environ.get("TRANSFER_GATEWAY", "bank deposit")
+    API_VERSION = os.environ.get("SHOPIFY_API_VERSION", "2025-01")
+    DRY_RUN = os.environ.get("DRY_RUN", "0") == "1"
+
+    MOVEMENTS_SQL = """
+    SELECT id::text AS id, to_char(value_date,'YYYY-MM-DD') AS value_date, amount, concept
+      FROM gestoria_banking.bank_movements
+     WHERE tenant_id = $1 AND amount > 0 AND status <> 'matched'
+       AND value_date >= CURRENT_DATE - ($2 || ' days')::interval
+     ORDER BY value_date
+    """
+
+    ORDERS_Q = """
+    query($q:String!){ orders(first:50, query:$q, sortKey:CREATED_AT, reverse:true){ nodes{
+      name createdAt paymentGatewayNames
+      currentTotalPriceSet{ shopMoney{ amount } } } } }
+    """
+
+
+    def _digits(name: str) -> str:
+        return re.sub(r"\D", "", name or "")
+
+
+    def _is_transfer(order: dict) -> bool:
+        return any(GATEWAY in (g or "").lower() for g in order.get("paymentGatewayNames") or [])
+
+
+    def match(orders: list[dict], movements: list[dict]):
+        """→ (llegados, pendientes). `llegados` = [(order, movement)].
+
+        Primero el número de pedido en el concepto (la convención del banco: «ORD19290»),
+        que es determinista. Después el importe exacto, con los ingresos ya asignados
+        fuera: el importe solo daría falso positivo con dos pedidos iguales.
+        """
+        used: set[str] = set()
+        llegados: list[tuple[dict, dict]] = []
+        pendientes: list[dict] = []
+        for o in orders:
+            d = _digits(o["name"])
+            hit = next((m for m in movements
+                        if m["id"] not in used and d
+                        and re.search(rf"(?:ORD)?{d}\b", (m["concept"] or "").upper())), None)
+            if hit:
+                used.add(hit["id"])
+                llegados.append((o, hit))
+            else:
+                pendientes.append(o)
+        for o in list(pendientes):
+            creado = datetime.fromisoformat(o["createdAt"]).date()
+            hit = next((m for m in movements
+                        if m["id"] not in used
+                        and abs(float(m["amount"]) - float(o["amount"])) < 0.02
+                        and date.fromisoformat(m["value_date"]) >= creado), None)
+            if hit:
+                used.add(hit["id"])
+                llegados.append((o, hit))
+                pendientes.remove(o)
+        return llegados, pendientes
+
+
+    def self_check() -> None:
+        """Aserciones del emparejamiento con datos fijos (SELFCHECK=1)."""
+        o_ref = {"name": "ORD19290", "createdAt": "2026-10-01T10:00:00Z", "amount": "89.75"}
+        o_imp = {"name": "ORD19000", "createdAt": "2026-10-05T10:00:00Z", "amount": "50.00"}
+        o_nada = {"name": "ORD19001", "createdAt": "2026-10-05T10:00:00Z", "amount": "77.00"}
+        movs = [
+            {"id": "1", "value_date": "2026-10-13", "amount": 89.75, "concept": "ORD19290"},
+            {"id": "2", "value_date": "2026-10-06", "amount": 50.00, "concept": "TRF CLIENTE"},
+            {"id": "3", "value_date": "2026-09-01", "amount": 77.00, "concept": "KLARNA"},
+        ]
+        llegados, pendientes = match([o_ref, o_imp, o_nada], movs)
+        assert {(o["name"], m["id"]) for o, m in llegados} == {("ORD19290", "1"), ("ORD19000", "2")}
+        # Un ingreso ANTERIOR a la creación del pedido no puede ser su cobro.
+        assert [o["name"] for o in pendientes] == ["ORD19001"]
+        assert "ORD19290" in compose([(o_ref, movs[0])], [o_nada])
+        print("self_check OK")
+
+
+    def compose(llegados: list[tuple[dict, dict]], pendientes: list[dict]) -> str:
+        lines: list[str] = []
+        for o, m in llegados:
+            lines.append(
+                f"✅ <b>{ff._esc(o['name'])}</b> · {ff.fmt_eur(o['amount'])} · "
+                f"ingreso {m['value_date']} · «{ff._clip_concept(m['concept'], 40)}»")
+        hoy = datetime.now(timezone.utc).date()
+        for o in pendientes:
+            dias = (hoy - datetime.fromisoformat(o["createdAt"]).date()).days
+            lines.append(
+                f"⏳ <b>{ff._esc(o['name'])}</b> · {ff.fmt_eur(o['amount'])} · "
+                f"{dias} {'día' if dias == 1 else 'días'} esperando")
+        head = "💰 <b>Transferencias</b>\n"
+        tail = "\n<i>Lo marcado ✅ falta por ponerlo como pagado en Shopify.</i>" if llegados else ""
+        return ff._fit_telegram(head, lines, tail)
+
+
+    async def shopify_pending(store: str, token: str) -> list[dict]:
+        since = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        q = f"financial_status:pending AND created_at:>={since}"
+        async with httpx.AsyncClient(
+            timeout=60.0,
+            headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+        ) as cli:
+            r = await cli.post(
+                f"https://{store}/admin/api/{API_VERSION}/graphql.json",
+                json={"query": ORDERS_Q, "variables": {"q": q}},
+            )
+            r.raise_for_status()
+            payload = r.json()
+        if payload.get("errors"):
+            raise RuntimeError(f"shopify graphql: {payload['errors']}")
+        return [{"name": n["name"], "createdAt": n["createdAt"],
+                 "amount": n["currentTotalPriceSet"]["shopMoney"]["amount"]}
+                for n in payload["data"]["orders"]["nodes"] if _is_transfer(n)]
+
+
+    async def publish(amqp_url: str, text: str, chat: str) -> None:
+        rmq = await aio_pika.connect_robust(amqp_url)
+        try:
+            ch = await rmq.channel(publisher_confirms=True)
+            ex = await ch.declare_exchange("commands", aio_pika.ExchangeType.TOPIC, durable=True)
+            msg_id, body = ff.command_envelope(
+                "messaging.send",
+                ff.build_telegram_send_params(
+                    text, chat_id=chat, topic_key=TOPIC_KEY, topic_name=TOPIC_NAME),
+            )
+            await ex.publish(
+                aio_pika.Message(body=body, content_type="application/json",
+                                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                                 message_id=msg_id,
+                                 headers={"tenant_id": TENANT, "source": "pending-transfers"}),
+                routing_key=f"messaging.{TENANT}.send",
+            )
+        finally:
+            await rmq.close()
+
+
+    async def main() -> None:
+        cfg = yaml.safe_load(open(CFG))
+        dsn = ff.inject_pw(cfg["database"]["dsn"], ff.read_secret(f"{CREDS}/{DB_PW_FILE}"))
+        amqp_url = ff.inject_pw(cfg["rabbitmq"]["url"], ff.read_secret(f"{CREDS}/{RMQ_PW_FILE}"))
+        store = ff.read_secret(f"{CREDS}/shopify.store").replace("https://", "").rstrip("/")
+        token = ff.read_secret(f"{CREDS}/shopify.access_token")
+
+        orders = await shopify_pending(store, token)
+        conn = await asyncpg.connect(dsn)
+        try:
+            await conn.execute("SELECT set_config('app.tenant_id',$1,false)", TENANT)
+            movements = [dict(r) for r in
+                         await conn.fetch(MOVEMENTS_SQL, TENANT, str(LOOKBACK_DAYS + 15))]
+            chat = CHAT_ID or await ff.telegram_chat_for(conn, TENANT)
+        finally:
+            await conn.close()
+
+        llegados, pendientes = match(orders, movements)
+        print(f"[pending-transfers] tenant={TENANT} transferencias_pendientes_shopify={len(orders)} "
+              f"llegaron={len(llegados)} siguen_sin_pagar={len(pendientes)}", flush=True)
+        if not orders or not chat:
+            print("[pending-transfers] nada que publicar", flush=True)
+            return
+        text = compose(llegados, pendientes)
+        if DRY_RUN:
+            print(f"[pending-transfers] DRY_RUN — NO publica\n{text}", flush=True)
+            return
+        await publish(amqp_url, text, chat)
+        print(f"[pending-transfers] publicado a chat={chat}", flush=True)
+
+
+    if __name__ == "__main__":
+        if os.environ.get("SELFCHECK") == "1":
+            self_check()
+        else:
+            asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skirmbooks-banking-pending-transfers
+  namespace: skirmshop
+  labels:
+    app: skirmbooks-banking-pending-transfers
+    app.kubernetes.io/part-of: skirmbooks
+spec:
+  schedule: "30 21 * * *"          # 21:30 UTC (23:30 Madrid): el banco ya tiene el import PSD2 de las 06:40
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: skirmbooks-banking-pending-transfers
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          imagePullSecrets:
+          - name: harbor-pull
+          tolerations:
+          - key: role
+            operator: Equal
+            value: edge
+            effect: NoSchedule
+          containers:
+          - name: pending-transfers
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+            command: ["python", "/scripts/pending_transfers.py"]
+            env:
+            - name: TENANT
+              value: skirmshop
+            # 0 = el chat de la ruta `telegram` de la empresa (notification_routes).
+            - name: CHAT_ID
+              value: ""
+            - name: DRY_RUN
+              value: "0"
+            resources:
+              requests: { cpu: "25m", memory: "96Mi" }
+              limits: { cpu: "250m", memory: "256Mi" }
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: config
+              mountPath: /etc/synapse/adapter-gestoria-banking.yaml
+              subPath: adapter-gestoria-banking.yaml
+            - name: credentials
+              mountPath: /etc/synapse/credentials
+          volumes:
+          - name: script
+            configMap:
+              name: skirmbooks-banking-pending-transfers-script
+          - name: config
+            configMap:
+              name: skirmbooks-banking-config
+          - name: credentials
+            secret:
+              secretName: skirmbooks-backend-secrets
