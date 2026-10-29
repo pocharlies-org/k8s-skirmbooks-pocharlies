@@ -253,7 +253,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: pending-transfers
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:audit-ocr-20260807@sha256:c436639838756053099a72b27d7a90c02421787aa9782fac6321a2823e4fc42a
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gestoria-20261018@sha256:6748a0d195d9679567faf7ed1b795a634b0642ab650f3c9e876432fc8f7704b0
             command: ["python", "/scripts/pending_transfers.py"]
             env:
             - name: TENANT
