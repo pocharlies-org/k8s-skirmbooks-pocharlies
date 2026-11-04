@@ -704,10 +704,10 @@ spec:
               defaultMode: 292
           - name: gmail-sa
             secret:
-              secretName: picker-secrets
+              secretName: skirmbooks-gmail-sa
               defaultMode: 292
               items:
-              - key: GA4_CREDENTIALS_JSON
+              - key: sa.json
                 path: sa.json
           - name: certs
             secret:
