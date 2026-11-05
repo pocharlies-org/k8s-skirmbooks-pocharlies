@@ -2,8 +2,8 @@
 # =============================================================================
 # Cuenta de servicio propia de Skirmbooks para leer y redactar en Gmail por
 # delegación de dominio: skirmbooks-gmail@skirmshopapp.iam.gserviceaccount.com,
-# client ID 106671548489475796130 (delegación: gmail.readonly, gmail.compose y
-# https://mail.google.com/, que es el scope que pide el código de hoy).
+# client ID 106671548489475796130 (delegación: gmail.readonly y gmail.compose,
+# lo mismo que pide el código desde gmail-scopes-20261104).
 # La montan como /etc/synapse/gmail/sa.json invoicing-ocr (email_search),
 # notifications-alerts, notifications-deh y el CronJob dehu-fetch.
 #
