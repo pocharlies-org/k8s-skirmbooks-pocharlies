@@ -1,11 +1,15 @@
 # Cron de TRANSFERENCIAS PENDIENTES de cobro (tenant skirmshop), justo tras el import PSD2.
 #
 # Qué hace: los pedidos cobrados por transferencia quedan en Shopify con método
-# «Bank Deposit» y PENDING hasta que alguien los marca pagados a mano. Este cron pide
-# a Shopify los pedidos así de pendientes, los cruza con los ingresos reales de
-# `gestoria_banking.bank_movements` (los que trae el import PSD2 de las 06:40) y
-# publica en Telegram dos listas: lo que YA entró y falta marcar, y lo que sigue sin
-# pagar. No marca nada: el dinero lo confirma Dani.
+# «Bank Deposit» y PENDING. Este cron pide a Shopify los pendientes por transferencia,
+# los cruza con los ingresos reales de `gestoria_banking.bank_movements` (los que trae
+# el import PSD2 de las 06:40) y, de los que YA entraron en el banco, MARCA PAGADO en
+# Shopify (REST `capture`), deja el ingreso como `matched` (rastro banco↔Shopify) y
+# publica el resumen por Telegram. Lo que sigue sin pagar se lista ⏳.
+#
+# Falla ruidoso: si un cobro no se puede marcar, el aviso sale ⚠️ y el proceso termina
+# con exit!=1 → Kubernetes registra un Job Failed (failedJobsHistoryLimit=3, auditable).
+# Interruptor: MARK_PAID="0" → solo informa, no escribe.
 #
 # Mismo patrón que banking-daily-sync / cobros-digest: script en ConfigMap sobre la
 # imagen del adapter de banca (asyncpg + aio_pika + httpx ya dentro), config y
@@ -23,6 +27,7 @@ data:
     import asyncio
     import os
     import re
+    import sys
     from datetime import date, datetime, timedelta, timezone
 
     import aio_pika
@@ -48,6 +53,8 @@ data:
     GATEWAY = os.environ.get("TRANSFER_GATEWAY", "bank deposit")
     API_VERSION = os.environ.get("SHOPIFY_API_VERSION", "2025-01")
     DRY_RUN = os.environ.get("DRY_RUN", "0") == "1"
+    # MARK_PAID="0" deja el cron solo-informativo (no escribe en Shopify). Por defecto marca.
+    MARK_PAID = os.environ.get("MARK_PAID", "1") == "1"
 
     MOVEMENTS_SQL = """
     SELECT id::text AS id, to_char(value_date,'YYYY-MM-DD') AS value_date, amount, concept
@@ -59,8 +66,8 @@ data:
 
     ORDERS_Q = """
     query($q:String!){ orders(first:50, query:$q, sortKey:CREATED_AT, reverse:true){ nodes{
-      name createdAt paymentGatewayNames
-      currentTotalPriceSet{ shopMoney{ amount } } } } }
+      id name createdAt paymentGatewayNames
+      currentTotalPriceSet{ shopMoney{ amount currencyCode } } } } }
     """
 
 
@@ -70,6 +77,11 @@ data:
 
     def _is_transfer(order: dict) -> bool:
         return any(GATEWAY in (g or "").lower() for g in order.get("paymentGatewayNames") or [])
+
+
+    def _oid(gid: str) -> str:
+        """El id numérico de Shopify a partir del GID `gid://shopify/Order/80497...`."""
+        return (gid or "").rsplit("/", 1)[-1]
 
 
     def match(orders: list[dict], movements: list[dict]):
@@ -106,7 +118,7 @@ data:
 
 
     def self_check() -> None:
-        """Aserciones del emparejamiento con datos fijos (SELFCHECK=1)."""
+        """Aserciones del emparejamiento y del resumen con datos fijos (SELFCHECK=1)."""
         o_ref = {"name": "ORD19290", "createdAt": "2026-10-01T10:00:00Z", "amount": "89.75"}
         o_imp = {"name": "ORD19000", "createdAt": "2026-10-05T10:00:00Z", "amount": "50.00"}
         o_nada = {"name": "ORD19001", "createdAt": "2026-10-05T10:00:00Z", "amount": "77.00"}
@@ -119,16 +131,26 @@ data:
         assert {(o["name"], m["id"]) for o, m in llegados} == {("ORD19290", "1"), ("ORD19000", "2")}
         # Un ingreso ANTERIOR a la creación del pedido no puede ser su cobro.
         assert [o["name"] for o in pendientes] == ["ORD19001"]
-        assert "ORD19290" in compose([(o_ref, movs[0])], [o_nada])
+        # Marcado: bien → «marcado pagado»; falló → ⚠️ auditable; solo-informativo → «falta marcar».
+        assert "marcado pagado" in compose([(o_ref, movs[0])], [], [o_nada], auto=True)
+        assert "⚠️" in compose([], [(o_imp, movs[1], "HTTP 402")], [], auto=True)
+        assert "falta marcar" in compose([(o_ref, movs[0])], [], [], auto=False)
+        assert _oid("gid://shopify/Order/8049761747285") == "8049761747285"
         print("self_check OK")
 
 
-    def compose(llegados: list[tuple[dict, dict]], pendientes: list[dict]) -> str:
+    def compose(marcados: list[tuple[dict, dict]], fallidos: list[tuple[dict, dict, str]],
+                pendientes: list[dict], auto: bool) -> str:
         lines: list[str] = []
-        for o, m in llegados:
+        for o, m in marcados:
+            estado = "marcado pagado en Shopify" if auto else "cobrado; falta marcar en Shopify"
             lines.append(
                 f"✅ <b>{ff._esc(o['name'])}</b> · {ff.fmt_eur(o['amount'])} · "
-                f"ingreso {m['value_date']} · «{ff._clip_concept(m['concept'], 40)}»")
+                f"ingreso {m['value_date']} · {estado}")
+        for o, m, err in fallidos:
+            lines.append(
+                f"⚠️ <b>{ff._esc(o['name'])}</b> · {ff.fmt_eur(o['amount'])} · "
+                f"cobrado {m['value_date']} PERO no pude marcar: {err[:60]}")
         hoy = datetime.now(timezone.utc).date()
         for o in pendientes:
             dias = (hoy - datetime.fromisoformat(o["createdAt"]).date()).days
@@ -136,7 +158,7 @@ data:
                 f"⏳ <b>{ff._esc(o['name'])}</b> · {ff.fmt_eur(o['amount'])} · "
                 f"{dias} {'día' if dias == 1 else 'días'} esperando")
         head = "💰 <b>Transferencias</b>\n"
-        tail = "\n<i>Lo marcado ✅ falta por ponerlo como pagado en Shopify.</i>" if llegados else ""
+        tail = "\n<i>⚠️ requiere marcar a mano en Shopify (falló el automático).</i>" if fallidos else ""
         return ff._fit_telegram(head, lines, tail)
 
 
@@ -155,9 +177,34 @@ data:
             payload = r.json()
         if payload.get("errors"):
             raise RuntimeError(f"shopify graphql: {payload['errors']}")
-        return [{"name": n["name"], "createdAt": n["createdAt"],
+        return [{"id": n["id"], "name": n["name"], "createdAt": n["createdAt"],
+                 "currency": n["currentTotalPriceSet"]["shopMoney"]["currencyCode"],
                  "amount": n["currentTotalPriceSet"]["shopMoney"]["amount"]}
                 for n in payload["data"]["orders"]["nodes"] if _is_transfer(n)]
+
+
+    async def mark_paid(cli, store: str, token: str, order: dict) -> str:
+        """Marca pagado en Shopify con REST `capture`; '' si OK, si no el motivo.
+
+        Shopify responde 201 creando la transacción «Marked the Bank Deposit payment as
+        received» (pending → paid). Idempotente de facto: el cron solo trae pedidos
+        PENDING, así que un cobro ya marcado no vuelve a aparecer."""
+        r = await cli.post(
+            f"https://{store}/admin/api/{API_VERSION}/orders/{_oid(order['id'])}/transactions.json",
+            headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+            json={"transaction": {"kind": "capture", "amount": order["amount"],
+                                  "currency": order["currency"]}},
+        )
+        return "" if r.status_code == 201 else f"HTTP {r.status_code}: {r.text[:160]}"
+
+
+    async def mark_movement(conn, movement_id: str) -> bool:
+        """Deja el ingreso como `matched`: rastro banco↔Shopify e idempotencia (deja de
+        aparecer como pendiente). True si actualizó 1 fila."""
+        res = await conn.execute(
+            "UPDATE gestoria_banking.bank_movements SET status='matched', updated_at=now() "
+            "WHERE id = $1::uuid AND amount > 0", movement_id)
+        return res.split()[-1] == "1"
 
 
     async def publish(amqp_url: str, text: str, chat: str) -> None:
@@ -189,27 +236,55 @@ data:
         token = ff.read_secret(f"{CREDS}/shopify.access_token")
 
         orders = await shopify_pending(store, token)
+        auto = MARK_PAID and not DRY_RUN
         conn = await asyncpg.connect(dsn)
+        fallidos: list[tuple[dict, dict, str]] = []
         try:
             await conn.execute("SELECT set_config('app.tenant_id',$1,false)", TENANT)
             movements = [dict(r) for r in
                          await conn.fetch(MOVEMENTS_SQL, TENANT, str(LOOKBACK_DAYS + 15))]
             chat = CHAT_ID or await ff.telegram_chat_for(conn, TENANT)
+
+            llegados, pendientes = match(orders, movements)
+            print(f"[pending-transfers] tenant={TENANT} transferencias_pendientes_shopify={len(orders)} "
+                  f"llegaron={len(llegados)} siguen_sin_pagar={len(pendientes)} auto_marcar={auto}", flush=True)
+
+            # Marca pagado en Shopify lo que ya entró en el banco y deja el ingreso matched.
+            marcados: list[tuple[dict, dict]] = []
+            if auto and llegados:
+                async with httpx.AsyncClient(timeout=60.0) as cli:
+                    for o, m in llegados:
+                        err = await mark_paid(cli, store, token, o)
+                        if not err and not await mark_movement(conn, m["id"]):
+                            err = "Shopify pagado, pero el ingreso no quedó matched (auditoría)"
+                        if err:
+                            fallidos.append((o, m, err))
+                            print(f"[mark] ⚠️ {o['name']} · {m['id']}: {err}", flush=True)
+                        else:
+                            marcados.append((o, m))
+                            print(f"[mark] ✅ {o['name']} pagado · ingreso {m['id']}", flush=True)
+            elif llegados:
+                marcados = list(llegados)  # solo-informativo / DRY: no escribe, lo lista como falta
         finally:
             await conn.close()
 
-        llegados, pendientes = match(orders, movements)
-        print(f"[pending-transfers] tenant={TENANT} transferencias_pendientes_shopify={len(orders)} "
-              f"llegaron={len(llegados)} siguen_sin_pagar={len(pendientes)}", flush=True)
-        if not orders or not chat:
+        if not orders:
             print("[pending-transfers] nada que publicar", flush=True)
             return
-        text = compose(llegados, pendientes)
+        text = compose(marcados, fallidos, pendientes, auto)
         if DRY_RUN:
-            print(f"[pending-transfers] DRY_RUN — NO publica\n{text}", flush=True)
+            print(f"[pending-transfers] DRY_RUN — NO publica ni marca\n{text}", flush=True)
             return
-        await publish(amqp_url, text, chat)
-        print(f"[pending-transfers] publicado a chat={chat}", flush=True)
+        if chat:
+            await publish(amqp_url, text, chat)
+            print(f"[pending-transfers] publicado a chat={chat} · marcados={len(marcados)} "
+                  f"fallidos={len(fallidos)}", flush=True)
+        else:
+            print(f"[pending-transfers] SIN CHAT (no publicado) · marcados={len(marcados)} "
+                  f"fallidos={len(fallidos)}", flush=True)
+        if fallidos:
+            # Cobros que no se pudieron marcar: exit!=1 → Job Failed en k8s (se audita el fallo).
+            sys.exit(1)
 
 
     if __name__ == "__main__":
@@ -263,6 +338,9 @@ spec:
               value: ""
             - name: DRY_RUN
               value: "0"
+            # Escribe «pagado» en Shopify para las transferencias ya cobradas. "0" = solo informa.
+            - name: MARK_PAID
+              value: "1"
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
               limits: { cpu: "250m", memory: "256Mi" }
