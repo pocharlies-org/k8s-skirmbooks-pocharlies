@@ -1,0 +1,36 @@
+# skirmbooks-gmail-sa ← 1Password (ESO, forma Connect) — SKIRM-371
+# =============================================================================
+# Cuenta de servicio propia de Skirmbooks para leer y redactar en Gmail por
+# delegación de dominio: skirmbooks-gmail@skirmshopapp.iam.gserviceaccount.com,
+# client ID 106671548489475796130 (delegación: gmail.readonly y gmail.compose,
+# lo mismo que pide el código desde gmail-scopes-20261104).
+# La montan como /etc/synapse/gmail/sa.json invoicing-ocr (email_search),
+# notifications-alerts, notifications-deh y el CronJob dehu-fetch.
+#
+# Sustituye a GA4_CREDENTIALS_JSON de picker-secrets: esa SA es compartida y
+# DGX-766 la dejó en gmail.send, con lo que la búsqueda de facturas daba
+# unauthorized_client.
+#
+# Item `skirmbooks-gmail-sa` del vault `k8s-pocharlies`, campo `sa_json` (el JSON
+# entero de la clave). Forma Connect: `key` = item, `property` = campo.
+# =============================================================================
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: skirmbooks-gmail-sa
+  namespace: skirmshop
+spec:
+  refreshInterval: 24h
+  refreshPolicy: OnChange
+  secretStoreRef:
+    name: onepassword-connect
+    kind: ClusterSecretStore
+  target:
+    name: skirmbooks-gmail-sa
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: sa.json
+      remoteRef:
+        key: skirmbooks-gmail-sa
+        property: sa_json

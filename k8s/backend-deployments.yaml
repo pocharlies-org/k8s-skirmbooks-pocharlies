@@ -1509,7 +1509,7 @@ spec:
         - name: credentials
           mountPath: /etc/synapse/credentials
           readOnly: true
-        # SA con delegación de dominio (gmail.readonly) — búsqueda agéntica de facturas
+        # SA propio con delegación de dominio (k8s/gmail-sa-external.yaml) — búsqueda agéntica de facturas
         - name: gmail-sa
           mountPath: /etc/synapse/gmail
           readOnly: true
@@ -1548,10 +1548,10 @@ spec:
                 optional: true
       - name: gmail-sa
         secret:
-          secretName: picker-secrets
+          secretName: skirmbooks-gmail-sa
           defaultMode: 292
           items:
-          - key: GA4_CREDENTIALS_JSON
+          - key: sa.json
             path: sa.json
       - name: synapse-data
         emptyDir: {}
@@ -2077,10 +2077,10 @@ spec:
           defaultMode: 292
       - name: gmail-sa
         secret:
-          secretName: picker-secrets
+          secretName: skirmbooks-gmail-sa
           defaultMode: 292
           items:
-          - key: GA4_CREDENTIALS_JSON
+          - key: sa.json
             path: sa.json
 ---
 apiVersion: apps/v1
@@ -2201,10 +2201,10 @@ spec:
           defaultMode: 292
       - name: gmail-sa
         secret:
-          secretName: picker-secrets
+          secretName: skirmbooks-gmail-sa
           defaultMode: 292
           items:
-          - key: GA4_CREDENTIALS_JSON
+          - key: sa.json
             path: sa.json
 ---
 apiVersion: apps/v1
