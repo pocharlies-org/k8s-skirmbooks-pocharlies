@@ -64,7 +64,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: reporting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:gmail-scopes-20261104@sha256:cd271b41796ee2ac6bfabebfc6878303318bfe59dcbc582f4e116b8dbd57bfda
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm400-fiscal-20261107@sha256:8995d59f9be20d62b144143bcc6ebb59cb492349a0e0cee83cf39636cc639775
         args:
         - synapse_adapter_reporting
         env:
