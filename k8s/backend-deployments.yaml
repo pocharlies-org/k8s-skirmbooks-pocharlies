@@ -746,6 +746,8 @@ spec:
       app: skirmbooks-fiscal-validator-validation
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-fiscal-validator-validation
         app.kubernetes.io/name: skirmbooks-fiscal-validator-validation
@@ -850,6 +852,8 @@ spec:
       app: skirmbooks-fiscal-validator-analysis
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-fiscal-validator-analysis
         app.kubernetes.io/name: skirmbooks-fiscal-validator-analysis
@@ -1274,6 +1278,8 @@ spec:
       app: skirmbooks-invoicing-fast
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-invoicing-fast
         app.kubernetes.io/name: skirmbooks-invoicing-fast
@@ -1424,6 +1430,8 @@ spec:
       app: skirmbooks-invoicing-ocr
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-invoicing-ocr
         app.kubernetes.io/name: skirmbooks-invoicing-ocr
@@ -1577,6 +1585,8 @@ spec:
       app: skirmbooks-invoicing-classify
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-invoicing-classify
         app.kubernetes.io/name: skirmbooks-invoicing-classify
@@ -1714,6 +1724,8 @@ spec:
       app: skirmbooks-invoicing-posting
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-invoicing-posting
         app.kubernetes.io/name: skirmbooks-invoicing-posting
@@ -1851,6 +1863,8 @@ spec:
       app: skirmbooks-invoicing-issued
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-invoicing-issued
         app.kubernetes.io/name: skirmbooks-invoicing-issued

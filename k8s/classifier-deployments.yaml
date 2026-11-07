@@ -142,6 +142,8 @@ spec:
       app: skirmbooks-fiscal-classifier
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-fiscal-classifier
         app.kubernetes.io/name: skirmbooks-fiscal-classifier

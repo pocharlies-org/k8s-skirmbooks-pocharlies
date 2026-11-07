@@ -10,6 +10,8 @@ spec:
       app: skirmbooks-ui
   template:
     metadata:
+      annotations:
+        skirmbooks.e-dani.com/litellm: skirmbooks-key-qwen38-flash-next  # SKIRM-400: key propia y residente; cambiarlo rueda los pods
       labels:
         app: skirmbooks-ui
         app.kubernetes.io/part-of: skirmbooks
@@ -215,17 +217,12 @@ spec:
             # LITELLM_API_KEY is injected via envFrom: skirmbooks-ui-secrets.
             - name: LITELLM_BASE
               value: http://litellm.litellm.svc.cluster.local:4000/v1
-            # `tooling` y no `qwen36-35b` (2026-08-10). Los dos apuntan HOY al mismo
-            # sitio, pero `qwen36-35b` es un nombre de MODELO servido por quien sea el
-            # residente de turno -- ahora DeepSeek-V4-Flash -- y esos nombres van a
-            # quedar restringidos al backend Qwen real. `tooling` es el nombre de
-            # CAPACIDAD: el residente, sea cual sea, con degradado a `dense`.
-            #
-            # Esto NO necesita modelo multimodal: pese al nombre, la llamada manda el
-            # texto ya extraido del PDF (ocr.server.ts) y pide JSON con esquema
-            # estricto. El OCR de verdad pasa antes.
+            # SKIRM-400 (07-11-2026, Dani): el residente por su nombre directo, no `tooling`, con la
+            # key propia de la UI (`skirmbooks-ui`, solo admite este alias) a prioridad -10 en el
+            # residente. Esto NO necesita modelo multimodal: la llamada manda el texto ya extraido
+            # del PDF (ocr.server.ts) y pide JSON con esquema estricto.
             - name: LITELLM_OCR_MODEL
-              value: tooling
+              value: qwen38-flash-next
           envFrom:
             - secretRef:
                 name: skirmbooks-ui-secrets
