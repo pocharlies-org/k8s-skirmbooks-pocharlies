@@ -71,7 +71,7 @@ data:
     database:\n  dsn: postgresql://gestoria_fiscal_validator_app@postgres-shared-rw.databases.svc.cluster.local:5432/skirmbooks\n\
     \  min_size: 2\n  max_size: 6\nrabbitmq:\n  url: amqp://synapse_adapter_gestoria_fiscal_validator@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse\n\
     litellm:\n  base_url: http://litellm.litellm.svc.cluster.local:4000/v1\n  primary_model:\
-    \ tooling\n  smart_model: smart\n  fast_model: fast\n  cloud_fallback: cb-gpt-4o-mini\n\
+    \ qwen38-flash-next\n  smart_model: smart\n  fast_model: fast\n  cloud_fallback: cb-gpt-4o-mini\n\
     \  timeout_s: 60.0\n  use_prompt_caching: true\n  use_redis_prefix_cache_fallback:\
     \ true\ncorpus:\n  path: /app/fiscal-corpus/built.txt\n\
     \  version: v1\ncircuit_breaker:\n  max_consecutive_failures: 5\n  half_open_after_seconds:\
@@ -116,8 +116,8 @@ data:
       url: amqp://synapse_adapter_gestoria_invoicing@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
     litellm:
       base_url: http://litellm.litellm.svc.cluster.local:4000/v1
-      text_model: tooling
-      vision_model: tooling
+      text_model: qwen38-flash-next
+      vision_model: qwen38-flash-next
       timeout_s: 120
       max_images_per_pdf: 8
     storage:
