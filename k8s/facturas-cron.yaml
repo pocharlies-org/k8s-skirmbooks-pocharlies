@@ -127,7 +127,7 @@ spec:
             # ni la exclusión journal_lines en PENDING_GASTOS_SQL, por lo que los gastos ya
             # asentados (gasto sin factura) nunca se auto-resolvían y seguían en el digest diario.
             # Imagen ya en prod (skirmbooks-accounting-derived).
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm400-fiscal-20261107@sha256:8995d59f9be20d62b144143bcc6ebb59cb492349a0e0cee83cf39636cc639775
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm413-mes-20261108@sha256:ccbdb427fc291b21e1044fd7b40dd1943311c7ed111b26374f2ee0b33bd7345b
             command: ["python", "/scripts/run-per-tenant.py", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANTS_EXCLUDE   # moreno tiene su propio CronJob abajo
@@ -198,7 +198,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-weekly
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm400-fiscal-20261107@sha256:8995d59f9be20d62b144143bcc6ebb59cb492349a0e0cee83cf39636cc639775
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm413-mes-20261108@sha256:ccbdb427fc291b21e1044fd7b40dd1943311c7ed111b26374f2ee0b33bd7345b
             command: ["python", "/scripts/run-per-tenant.py", "synapse_adapter_banking.facturas_weekly"]
             env:
             - name: FACTURAS_TENANTS_EXCLUDE   # same reason as daily
@@ -265,7 +265,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: facturas-daily
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm400-fiscal-20261107@sha256:8995d59f9be20d62b144143bcc6ebb59cb492349a0e0cee83cf39636cc639775
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm413-mes-20261108@sha256:ccbdb427fc291b21e1044fd7b40dd1943311c7ed111b26374f2ee0b33bd7345b
             command: ["python", "-m", "synapse_adapter_banking.facturas_daily"]
             env:
             - name: FACTURAS_TENANT
