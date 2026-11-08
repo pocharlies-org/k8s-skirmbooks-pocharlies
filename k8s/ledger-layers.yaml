@@ -82,7 +82,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: ledger-layers
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm413-mes-20261108@sha256:ccbdb427fc291b21e1044fd7b40dd1943311c7ed111b26374f2ee0b33bd7345b
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm413-divisa-20261108@sha256:4f313c2c61472dce9f0f77a06288593b24a8a092c82be7635cbf55c9addb77a8
         args:
         - skirmbooks_ledger_layers
         env:
