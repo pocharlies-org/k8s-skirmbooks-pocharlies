@@ -192,7 +192,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm427-gasto-doble-20261109@sha256:b4747b6cb304805e6941bd0724ee39d1cdd6d4a2d1bd3e4dbefd687e01a4bb3b
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc5220-watchdog-20261110@sha256:f82c8ffcc178ea866a9471bfee5f27d4d249dd9882e54289e123a42bbb33ee35
             command: ["python", "/scripts/sweep.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
