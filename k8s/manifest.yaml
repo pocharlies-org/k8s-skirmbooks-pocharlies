@@ -46,7 +46,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: skirmbooks-ui
-          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui@sha256:c231e59a0724db4cf8722d37677bc3442db225e82fe4ebf1e2b816eebd0a5d70  # skirm427-gasto-doble-20261109
+          image: harbor.lan.e-dani.com/homelab/skirmbooks-ui@sha256:9b6ed8e78b866a38122dfdf1d645ef1cc3515c2f8ac2108886ad2a7087ca1a01  # skirm465-unpost-20261112
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
