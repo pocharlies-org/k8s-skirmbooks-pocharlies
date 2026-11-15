@@ -873,6 +873,12 @@ spec:
                 operator: NotIn
                 values:
                 - lan
+              # INFRA-171: pin declarativo a ks5-cp-3 (1 replica, sin PVC; cp-1 al limite 5526m/5525m).
+              # Sumado a las expresiones anteriores, no las sustituye. p95 48h = 5.2m (VM), carga ociosa.
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - ks5-cp-3
       topologySpreadConstraints:
       - maxSkew: 2
         topologyKey: kubernetes.io/hostname
