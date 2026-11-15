@@ -55,7 +55,7 @@ spec:
       - name: harbor-pull
       containers:
       - name: accounting
-        image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm465-reverse-20261112@sha256:bf8db8f58f4553567c8afcb9b94c7386e20e8a0b3e495fb9635e21d1fdd14fae
+        image: harbor.e-dani.com/homelab/skirmbooks-backend:infra1302-20261115@sha256:f105baebaf663f0d46d649e2b401eb15611eabc01b5b1f65e4bee3910202b610
         args:
         - synapse_adapter_accounting
         env:
