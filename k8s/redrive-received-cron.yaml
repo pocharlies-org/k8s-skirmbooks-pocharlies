@@ -70,9 +70,12 @@ spec:
             effect: NoSchedule
           containers:
           - name: redrive-received
-            # Imagen del merge SKIRM-183 de skirmbooks-gestoria-src (eae245a);
-            # es la única que lleva el redrive extendido a las `cancelled`.
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc5220-watchdog-20261110@sha256:f82c8ffcc178ea866a9471bfee5f27d4d249dd9882e54289e123a42bbb33ee35
+            # Imagen de main de skirmbooks-gestoria-src con el fix SC-5665
+            # (e4b8d72b): el re-drive normaliza el `source` del evento
+            # attachment.<tenant>.received al contrato del consumidor
+            # (telegram|email|manual); sigue llevando el redrive extendido a
+            # las `cancelled` (SKIRM-183).
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc5665-redrive-20261116@sha256:33d30a76fc6dfbad735d0212babc02f6b8e65805651600b88e407167d0c66d52
             command: ["python", "-m", "synapse_adapter_invoicing.redrive_received"]
             env:
             - name: FACTURAS_TENANT
