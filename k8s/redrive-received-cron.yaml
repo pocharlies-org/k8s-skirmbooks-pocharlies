@@ -90,12 +90,12 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-skirmbooks
+                  name: skirmbooks-s3-ovh
                   key: AWS_ACCESS_KEY_ID
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-skirmbooks
+                  name: skirmbooks-s3-ovh
                   key: AWS_SECRET_ACCESS_KEY
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
