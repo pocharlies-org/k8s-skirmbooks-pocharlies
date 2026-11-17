@@ -122,13 +122,15 @@ data:
       max_images_per_pdf: 8
     storage:
       backend: s3
-      endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+      # INFRA-1175: OVH Object Storage (región sbg); credenciales AWS_* del
+      # Secret skirmbooks-s3-ovh.
+      endpoint: https://s3.sbg.io.cloud.ovh.net
       bucket: skirmshop-drive
-      region: us-east-1
+      region: sbg
       prefix: skirmbooks/invoicing
       access_key_env: AWS_ACCESS_KEY_ID
       secret_key_env: AWS_SECRET_ACCESS_KEY
-      secure: false
+      secure: true
       root: /var/lib/synapse/gestoria/invoicing
       pdf_dpi: 200
       image_format: png
@@ -194,10 +196,12 @@ data:
       sender_mailbox: info@e-dani.com
       sender_display: "Skirmbooks · gestoría <info@e-dani.com>"
       storage:
-        endpoint: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+        endpoint: https://s3.sbg.io.cloud.ovh.net
         bucket: skirmshop-drive
+        region: sbg
         prefix: skirmbooks/dehu
-        secure: false
+        # deh_store.py toma `secure` de aquí, no del esquema del endpoint.
+        secure: true
       # 100WORDS (alphalink) avisa en su propio topic de Pocharlies Operations,
       # no en el grupo de Skirmshop. thread_id fijo: el CronJob
       # skirmbooks-dehu-fetch sube ahí los PDFs.

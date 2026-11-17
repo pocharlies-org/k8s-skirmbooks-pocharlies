@@ -1345,20 +1345,20 @@ spec:
               name: skirmbooks-keda-rabbitmq-auth
               key: password
         - name: S3_ENDPOINT
-          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+          value: https://s3.sbg.io.cloud.ovh.net
         - name: S3_BUCKET
           value: skirmshop-drive
         - name: S3_REGION
-          value: us-east-1
+          value: sbg
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1497,20 +1497,20 @@ spec:
               name: skirmbooks-keda-rabbitmq-auth
               key: password
         - name: S3_ENDPOINT
-          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+          value: https://s3.sbg.io.cloud.ovh.net
         - name: S3_BUCKET
           value: skirmshop-drive
         - name: S3_REGION
-          value: us-east-1
+          value: sbg
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1652,20 +1652,20 @@ spec:
               name: skirmbooks-keda-rabbitmq-auth
               key: password
         - name: S3_ENDPOINT
-          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+          value: https://s3.sbg.io.cloud.ovh.net
         - name: S3_BUCKET
           value: skirmshop-drive
         - name: S3_REGION
-          value: us-east-1
+          value: sbg
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1791,20 +1791,20 @@ spec:
               name: skirmbooks-keda-rabbitmq-auth
               key: password
         - name: S3_ENDPOINT
-          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+          value: https://s3.sbg.io.cloud.ovh.net
         - name: S3_BUCKET
           value: skirmshop-drive
         - name: S3_REGION
-          value: us-east-1
+          value: sbg
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -1930,20 +1930,20 @@ spec:
               name: skirmbooks-keda-rabbitmq-auth
               key: password
         - name: S3_ENDPOINT
-          value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+          value: https://s3.sbg.io.cloud.ovh.net
         - name: S3_BUCKET
           value: skirmshop-drive
         - name: S3_REGION
-          value: us-east-1
+          value: sbg
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics
@@ -2173,12 +2173,12 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: skirmshop-drive-s3-skirmbooks
+              name: skirmbooks-s3-ovh
               key: AWS_SECRET_ACCESS_KEY
         ports:
         - name: metrics

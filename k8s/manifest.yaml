@@ -195,22 +195,22 @@ spec:
             - name: AMQP_URL
               value: amqp://$(_SKBUI_RMQ_USER):$(_SKBUI_RMQ_PASS)@synapse-rmq.databases.svc.cluster.local:5672/%2Fsynapse
             - name: S3_ENDPOINT
-              value: http://skirmshop-drive-s3.backup-hub.svc.cluster.local:9000
+              value: https://s3.sbg.io.cloud.ovh.net
             - name: S3_BUCKET
               value: skirmshop-drive
             - name: S3_REGION
-              value: us-east-1
+              value: sbg
             - name: S3_PREFIX
               value: skirmbooks/invoicing
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-skirmbooks
+                  name: skirmbooks-s3-ovh
                   key: AWS_ACCESS_KEY_ID
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: skirmshop-drive-s3-skirmbooks
+                  name: skirmbooks-s3-ovh
                   key: AWS_SECRET_ACCESS_KEY
             # OCR (facturas recibidas) → in-cluster LiteLLM. The sauvage-hosted pod
             # cannot reach the x86 LAN default (192.168.50.142); use the cluster svc.
