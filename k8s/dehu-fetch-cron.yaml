@@ -6,8 +6,8 @@
 # (arranca plazos). Qué empresas lo decide deh.auto_fetch / deh.auto_fetch_tenants
 # en skirmbooks-notifications-config (backend-config.yaml).
 #
-# Cada 15 min: si no hay notificaciones 'received' sin PDF de esas empresas, el
-# pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
+# Al crearse una notificación (evento, SC-5877) y cada hora como red: si no hay
+# notificaciones 'received' sin PDF de esas empresas, el pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
 # skirmbooks-aeat-browser, la que ya lleva Playwright) + httpx/OpenSSL para la
 # cadena Cl@ve con el certificado → PDF del aviso (el correo, de Gmail) + PDF
 # real → Telegram (topic fijo de deh.telegram_targets) → notifications.deh.attach
@@ -620,8 +620,11 @@ metadata:
     app.kubernetes.io/part-of: skirmbooks
     e-dani.com/portfolio: skirmshop
 spec:
-  # Cada 15 min: con varios logins seguidos el WAF de DEHú corta la IP un rato.
-  schedule: "*/15 * * * *"
+  # SC-5877 (A6 de SC-5806): lo lanza el evento notifications.<t>.deh.received
+  # (workflow skirmshop.k8s.dehu-fetch de Synapse → Job desde esta plantilla, como
+  # mucho uno cada 15 min: con varios logins seguidos el WAF de DEHú corta la IP un
+  # rato). Este horario es solo la red por si un evento se pierde.
+  schedule: "20 * * * *"
   timeZone: Europe/Madrid
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
