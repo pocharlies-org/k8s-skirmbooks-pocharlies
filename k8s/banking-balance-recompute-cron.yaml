@@ -122,7 +122,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: balance-recompute
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc5220-watchdog-20261110@sha256:f82c8ffcc178ea866a9471bfee5f27d4d249dd9882e54289e123a42bbb33ee35
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gestoria-20261119@sha256:9d9cc9b7f37ee5f0b77f6cca3ed4e9ed0bdd1fb92fbfa1a0e5c51cf0e556a45d
             command: ["python", "/scripts/balance_recompute.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
