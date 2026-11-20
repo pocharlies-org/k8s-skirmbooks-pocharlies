@@ -75,7 +75,7 @@ spec:
             # attachment.<tenant>.received al contrato del consumidor
             # (telegram|email|manual); sigue llevando el redrive extendido a
             # las `cancelled` (SKIRM-183).
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc5665-redrive-20261116@sha256:33d30a76fc6dfbad735d0212babc02f6b8e65805651600b88e407167d0c66d52
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:gestoria-20261119@sha256:9d9cc9b7f37ee5f0b77f6cca3ed4e9ed0bdd1fb92fbfa1a0e5c51cf0e556a45d
             command: ["python", "-m", "synapse_adapter_invoicing.redrive_received"]
             env:
             - name: FACTURAS_TENANT
