@@ -886,7 +886,12 @@ spec:
         labelSelector:
           matchLabels:
             app.kubernetes.io/part-of: skirmbooks
+      # INFRA-1557: ks5-cp-3 es control-plane y lleva su taint; sin esta
+      # toleration cualquier rollout deja el pod Pending para siempre.
       tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
       - key: role
         operator: Equal
         value: edge
