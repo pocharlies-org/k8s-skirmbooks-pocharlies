@@ -6,7 +6,7 @@
 # (arranca plazos). Qué empresas lo decide deh.auto_fetch / deh.auto_fetch_tenants
 # en skirmbooks-notifications-config (backend-config.yaml).
 #
-# Al crearse una notificación (evento, SC-5877) y cada hora como red: si no hay
+# Al crearse una notificación (evento, SC-5877; sin red horaria desde SC-6596): si no hay
 # notificaciones 'received' sin PDF de esas empresas, el pod sólo consulta la BD y sale. Si las hay: Chromium headless (imagen
 # skirmbooks-aeat-browser, la que ya lleva Playwright) + httpx/OpenSSL para la
 # cadena Cl@ve con el certificado → PDF del aviso (el correo, de Gmail) + PDF
@@ -623,11 +623,14 @@ spec:
   # SC-5877 (A6 de SC-5806): lo lanza el evento notifications.<t>.deh.received
   # (workflow skirmshop.k8s.dehu-fetch de Synapse → Job desde esta plantilla, como
   # mucho uno cada 15 min: con varios logins seguidos el WAF de DEHú corta la IP un
-  # rato). Este horario es solo la red por si un evento se pierde.
-  schedule: "20 * * * *"
-  timeZone: Europe/Madrid
+  # rato). PLANTILLA (SC-6596; SC-5806 C-2, Dani 25-11: sin redes por reloj): nunca
+  # corre por horario. Lo que cubría la red horaria y ya no cubre nadie hasta el reloj
+  # único de la ola 2: el aviso cuyo evento se pierde, la comparecencia que falla
+  # (WAF, Cl@ve) y la notificación creada mientras otro Job estaba activo (debounce
+  # `dehu-fetch`): esperan al siguiente aviso DEH de cualquier empresa.
+  suspend: true
+  schedule: "0 0 31 2 *"
   concurrencyPolicy: Forbid
-  startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
