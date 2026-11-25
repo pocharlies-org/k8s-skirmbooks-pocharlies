@@ -129,8 +129,13 @@ metadata:
     app: skirmbooks-personal-classifier-sweep
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  suspend: false                   # ACTIVO desde 2026-07-21: el tenant personal (Hogar) ya tiene banco y movimientos
-  schedule: "0 7 * * *"           # 07:00 UTC: TRAS el import de las 06:40 (banking-daily-sync) y ANTES del digest de cobros de las 07:20, para que el digest muestre las categorías ya clasificadas y solo pregunte por botones lo genuinamente dudoso (antes corría 03:30, ANTES del import → los movimientos nuevos llegaban sin categorizar)
+  # SC-6601 (SC-5806 ola 1, Dani 25-11, opción C-2: todo a eventos, sin redes): PLANTILLA, no reloj.
+  # La lanza el workflow skirmshop.k8s.skirmbooks-personal-classifier-sweep (repo synapse) cuando el adapter banking publica
+  # banking.<tenant>.movements.imported (importación con movimientos nuevos; cualquier fuente; el import PSD2 de las 06:40 sigue cayendo antes del digest de cobros de las 07:20):
+  # synapse-adapter-k8s crea skirmbooks-personal-classifier-sweep-ev-* desde este jobTemplate. Antes: 07:00 UTC tras el import.
+  # `0 0 31 2 *` no llega nunca.
+  schedule: "0 0 31 2 *"
+  suspend: true
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 3
@@ -155,7 +160,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: sweep
-            image: harbor.e-dani.com/homelab/skirmbooks-backend:skirm-622-20261124@sha256:bd87670086862495ac4f72c51fec69990ebfcb33eaea99c7c749562a74df5774
+            image: harbor.e-dani.com/homelab/skirmbooks-backend:sc6601-20261125@sha256:026291cccee0570c7690aee110a99397fb7bc5ff40688fe136d9c211b65016db
             command: ["python", "/scripts/sweep.py"]
             resources:
               requests: { cpu: "25m", memory: "96Mi" }
