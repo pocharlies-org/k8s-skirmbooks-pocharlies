@@ -144,8 +144,13 @@ metadata:
     app: skirmbooks-classifier-sweep
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  suspend: false                   # entregado SUSPENDIDO — activar manualmente para reprocesar backlog
-  schedule: "0 3 * * *"           # diario 03:00
+  # SC-6601 (SC-5806 ola 1, Dani 25-11, opción C-2: todo a eventos, sin redes): PLANTILLA, no reloj.
+  # La lanza el workflow skirmshop.k8s.skirmbooks-classifier-sweep (repo synapse) cuando el adapter banking publica
+  # banking.<tenant>.movements.imported (importación con movimientos nuevos; cualquier fuente):
+  # synapse-adapter-k8s crea skirmbooks-classifier-sweep-ev-* desde este jobTemplate. Antes: diario 03:00.
+  # `0 0 31 2 *` no llega nunca.
+  schedule: "0 0 31 2 *"
+  suspend: true
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 3

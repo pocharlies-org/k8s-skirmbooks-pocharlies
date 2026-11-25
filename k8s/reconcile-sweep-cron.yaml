@@ -126,7 +126,13 @@ metadata:
     app: skirmbooks-reconcile-sweep
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  schedule: "*/15 * * * *"        # cada 15 min
+  # SC-6601 (SC-5806 ola 1, Dani 25-11, opción C-2: todo a eventos, sin redes): PLANTILLA, no reloj.
+  # La lanza el workflow skirmshop.k8s.skirmbooks-reconcile-sweep (repo synapse) cuando el adapter banking publica
+  # banking.<tenant>.movements.imported (importación con movimientos nuevos; cualquier fuente; medido 25-11: total=0 en cada pasada de 15 min):
+  # synapse-adapter-k8s crea skirmbooks-reconcile-sweep-ev-* desde este jobTemplate. Antes: cada 15 min.
+  # `0 0 31 2 *` no llega nunca.
+  schedule: "0 0 31 2 *"
+  suspend: true
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 120
   successfulJobsHistoryLimit: 3

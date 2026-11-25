@@ -74,7 +74,10 @@ data:
     async def main():
         module = sys.argv[1]
         exclude = {t.strip() for t in os.environ.get("FACTURAS_TENANTS_EXCLUDE", "").split(",") if t.strip()}
-        tenants = sorted(t for t in await discover() if t not in exclude)
+        # SC-6601: el Job que lanza el evento de una empresa (banking.<t>.movements.imported) trae
+        # FACTURAS_TENANTS_ONLY=<t> y pasa solo por ella; sin la variable, todas (como antes).
+        only = {t.strip() for t in os.environ.get("FACTURAS_TENANTS_ONLY", "").split(",") if t.strip()}
+        tenants = sorted(t for t in await discover() if t not in exclude and (not only or t in only))
         print(f"[facturas-per-tenant] modulo={module} tenants={tenants}", flush=True)
         rc = 0
         for t in tenants:
@@ -95,7 +98,13 @@ metadata:
     app: skirmbooks-facturas-daily
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  schedule: "0 10 * * *"          # 10:00 UTC, tras imports (06:00) y matchers (≤09:15)
+  # SC-6601 (SC-5806 ola 1, Dani 25-11, opción C-2: todo a eventos, sin redes): PLANTILLA, no reloj.
+  # La lanza el workflow skirmshop.k8s.skirmbooks-facturas-daily (repo synapse) cuando el adapter banking publica
+  # banking.<tenant>.movements.imported (importación con movimientos nuevos; solo PSD2, una empresa por Job con FACTURAS_TENANTS_ONLY=<tenant>, como mucho cada 6 h por empresa):
+  # synapse-adapter-k8s crea skirmbooks-facturas-daily-ev-* desde este jobTemplate. Antes: 10:00 UTC tras imports y matchers.
+  # `0 0 31 2 *` no llega nunca.
+  schedule: "0 0 31 2 *"
+  suspend: true
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 3
@@ -239,7 +248,13 @@ metadata:
     app: skirmbooks-facturas-daily-moreno
     app.kubernetes.io/part-of: skirmbooks
 spec:
-  schedule: "15 10 * * *"
+  # SC-6601 (SC-5806 ola 1, Dani 25-11, opción C-2: todo a eventos, sin redes): PLANTILLA, no reloj.
+  # La lanza el workflow skirmshop.k8s.skirmbooks-facturas-daily-moreno (repo synapse) cuando el adapter banking publica
+  # banking.<tenant>.movements.imported (importación con movimientos nuevos; solo PSD2 de moreno, como mucho cada 6 h):
+  # synapse-adapter-k8s crea skirmbooks-facturas-daily-moreno-ev-* desde este jobTemplate. Antes: 10:15 UTC.
+  # `0 0 31 2 *` no llega nunca.
+  schedule: "0 0 31 2 *"
+  suspend: true
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 3
